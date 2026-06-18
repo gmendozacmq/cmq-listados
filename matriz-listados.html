@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matriz de Listados · Acciones</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#0f1720; --muted:#64748b; --faint:#94a3b8;
+    --line:#e6eaef; --line2:#f0f3f6;
+    --bg:#eef1f5; --panel:#ffffff; --panel2:#f8fafc;
+    --accent:#0f766e; --accent2:#14b8a6; --accent-soft:#d9f2ee;
+    --pos:#059669; --pos-soft:#d1fae5; --neg:#dc2626; --neg-soft:#fee2e2;
+    --warn:#b45309; --warn-soft:#fef3c7;
+    --shadow:0 1px 2px rgba(15,23,32,.04),0 8px 24px -12px rgba(15,23,32,.14);
+    --shadow-lg:0 10px 40px -8px rgba(15,23,32,.28);
+    --radius:16px; --radius-sm:11px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.45;font-size:15px;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  input,select{font-family:inherit}
+  ::-webkit-scrollbar{height:9px;width:9px}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+
+  .btn{font-size:13.5px;font-weight:600;padding:9px 15px;border-radius:10px;background:var(--accent);
+    color:#fff;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+  .btn:hover{background:#0b5750}
+  .btn.ghost{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+  .btn.ghost:hover{color:var(--accent);border-color:#cdd7e0}
+  .btn.sm{padding:6px 11px;font-size:12.5px;border-radius:9px}
+  .btn svg{width:16px;height:16px}
+  .btn.sm svg{width:14px;height:14px}
+
+  /* ---- topbar ---- */
+  .topbar{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.92);
+    backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line);padding:10px 16px}
+  .row1{display:flex;align-items:center;gap:12px;max-width:1340px;margin:0 auto;flex-wrap:wrap}
+  .brand{font-weight:740;font-size:16px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+  .brand .logo{width:26px;height:26px;border-radius:8px;background:linear-gradient(150deg,#0f766e,#0b5750);
+    display:grid;place-items:center;color:#fff;font-size:14px}
+  .projbar{display:flex;align-items:center;gap:6px}
+  .projbar select{font-size:13.5px;font-weight:600;padding:7px 10px;border-radius:9px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink);max-width:200px}
+  .iconbtn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+  .iconbtn:hover{color:var(--accent);border-color:#cdd7e0}
+  .iconbtn svg{width:16px;height:16px}
+  .spacer{flex:1}
+  .census{font-family:var(--mono);font-size:11.5px;color:var(--muted);display:flex;gap:7px;align-items:center}
+  .census b{color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:6px;font-weight:700}
+  .saved{font-family:var(--mono);font-size:11px;color:var(--pos);opacity:0;transition:opacity .3s;display:flex;align-items:center;gap:4px}
+  .saved.show{opacity:1}
+  .saved svg{width:12px;height:12px}
+
+  .tabs{display:flex;gap:4px;max-width:1340px;margin:12px auto 0;padding:0 16px}
+  .tab{font-size:14px;font-weight:600;color:var(--muted);padding:9px 16px;border-radius:10px 10px 0 0;
+    border:1px solid transparent;border-bottom:0}
+  .tab.on{color:var(--accent);background:var(--panel);border-color:var(--line)}
+  .tab .n{font-family:var(--mono);font-size:11px;background:var(--panel2);border:1px solid var(--line);
+    padding:1px 6px;border-radius:6px;margin-left:6px;color:var(--muted)}
+
+  .wrap{max-width:1340px;margin:0 auto;padding:16px}
+  .view{display:none;animation:fade .2s ease}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .toolbar .hint{font-size:12.5px;color:var(--faint);font-family:var(--mono)}
+  .search{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:7px 11px;font-size:13.5px;box-shadow:var(--shadow)}
+  .search input{border:0;outline:0;background:none;width:180px;font-size:13.5px}
+
+  /* ---- empty state ---- */
+  .empty-state{text-align:center;color:var(--muted);padding:46px 20px;font-size:14px}
+  .empty-state .big{font-size:17px;font-weight:650;color:var(--ink);margin-bottom:6px}
+  .empty-state .btn{margin-top:16px}
+
+  /* ---- listado cards ---- */
+  .colgroup{margin-bottom:22px}
+  .colgroup-h{display:flex;align-items:center;gap:10px;margin:0 2px 10px}
+  .colgroup-h .dot{width:9px;height:9px;border-radius:3px;background:var(--accent2)}
+  .colgroup-h .name{font-weight:700;font-size:15px}
+  .colgroup-h .meta{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:11px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:13px 14px;box-shadow:var(--shadow);position:relative;transition:box-shadow .15s,border-color .15s}
+  .card:hover{border-color:#cdd7e0}
+  .card.drag{opacity:.4}
+  .card.over{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .card .accion{font-weight:650;font-size:14px;letter-spacing:-.01em;padding-right:48px;word-break:break-word}
+  .card .top-actions{position:absolute;top:10px;right:10px;display:flex;gap:4px;align-items:center}
+  .card .top-actions .grip{color:var(--faint);cursor:grab}
+  .card .top-actions svg{width:15px;height:15px;display:block}
+  .card .xbtn{color:var(--faint)}
+  .card .xbtn:hover{color:var(--neg)}
+  .card .src{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px}
+  .card .det{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:7px;
+    background:var(--panel2);border:1px solid var(--line2);border-radius:7px;padding:5px 8px;max-height:46px;overflow:hidden}
+  .card .colsel{margin-top:9px;display:flex;align-items:center;gap:6px}
+  .card .colsel label{font-size:10.5px;color:var(--faint);font-family:var(--mono);width:26px}
+  .card .colsel input{flex:1;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12.5px;background:var(--panel2);min-width:0}
+  .card .colsel input:focus{outline:0;border-color:var(--accent);background:#fff}
+  .card .foot{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .card .cnt{font-family:var(--mono);font-size:11.5px;color:var(--accent);font-weight:700;background:var(--accent-soft);padding:2px 8px;border-radius:6px}
+  .card .lnk{font-size:12px;color:var(--muted);margin-left:auto;display:inline-flex;align-items:center;gap:4px}
+  .card .lnk:hover{color:var(--accent)}
+  .card .lnk svg{width:13px;height:13px}
+  .card.manual .colsel label{color:var(--accent)}
+  .card.unclassified{border-color:#fcd9a4;background:#fffdf7}
+
+  /* ---- matrix ---- */
+  .tablewrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:auto;max-height:74vh}
+  table.matrix{border-collapse:separate;border-spacing:0;font-size:13px;width:100%}
+  table.matrix th,table.matrix td{padding:8px 11px;text-align:left;white-space:nowrap;
+    border-bottom:1px solid var(--line2);border-right:1px solid var(--line2)}
+  table.matrix thead th{position:sticky;top:0;z-index:3;background:var(--panel2);font-size:11.5px;
+    font-weight:650;color:var(--ink);border-bottom:1px solid var(--line);cursor:grab;user-select:none}
+  table.matrix thead th.over{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+  table.matrix thead th.drag{opacity:.4}
+  table.matrix th.pdvcol,table.matrix td.pdvcol{position:sticky;left:0;z-index:2;background:var(--panel);
+    font-family:var(--mono);font-weight:600;cursor:default}
+  table.matrix thead th.pdvcol{z-index:4;background:var(--panel2)}
+  table.matrix tbody tr:hover td{background:#f5fbfa}
+  table.matrix tbody tr:hover td.pdvcol{background:#eef9f7}
+  table.matrix td.val{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  table.matrix td.empty{color:#cdd5dd}
+  .th-in{display:flex;align-items:center;gap:6px}
+  .th-in .rn{border:0;background:none;font:inherit;color:inherit;font-weight:650;width:100%;min-width:70px;padding:2px 3px;border-radius:5px}
+  .th-in .rn:focus{outline:0;background:#fff;box-shadow:0 0 0 2px var(--accent-soft)}
+  .th-grip{color:var(--faint)}
+  .th-grip svg{width:13px;height:13px;display:block}
+  .matnote{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:10px;text-align:center}
+
+  /* ---- diccionario ---- */
+  .dicttable{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  table.dict{width:100%;border-collapse:collapse;font-size:13px}
+  table.dict th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    font-family:var(--mono);padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  table.dict td{padding:5px 8px;border-bottom:1px solid var(--line2)}
+  table.dict input{width:100%;border:1px solid transparent;background:none;padding:6px 8px;border-radius:7px;font-size:13px}
+  table.dict input:focus{outline:0;border-color:var(--accent);background:var(--panel2)}
+  table.dict tr:hover input{background:var(--panel2)}
+  table.dict .delcol{width:40px;text-align:center}
+  table.dict .delx{color:var(--faint)}
+  table.dict .delx:hover{color:var(--neg)}
+
+  /* ---- modal ---- */
+  .modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(15,23,32,.45);
+    align-items:flex-start;justify-content:center;padding:34px 16px;overflow:auto}
+  .modal.on{display:flex}
+  .modal-card{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow-lg);
+    width:100%;max-width:600px;animation:pop .18s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal-h{display:flex;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .modal-h b{font-size:16px;flex:1}
+  .modal-h .x{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+  .modal-h .x:hover{background:var(--panel2);color:var(--neg)}
+  .modal-body{padding:18px}
+  .modal-f{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .drop{border:1.5px dashed #b9c4cf;border-radius:var(--radius-sm);background:var(--panel2);padding:26px 18px;
+    cursor:pointer;text-align:center;transition:border-color .15s,background .15s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:#fbfefe}
+  .drop strong{display:block;font-size:14.5px;margin-bottom:3px}
+  .drop span{color:var(--muted);font-size:12.5px}
+  input[type=file]{display:none}
+  .fld{margin-bottom:13px}
+  .fld>label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);font-family:var(--mono);margin-bottom:5px}
+  .fld>label .req{color:var(--neg)}
+  .fld select,.fld input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:13.5px;background:var(--panel)}
+  .fld select:focus,.fld input:focus{outline:0;border-color:var(--accent)}
+  .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+  .seg button{flex:1;padding:9px;font-size:13px;font-weight:600;color:var(--muted);background:var(--panel2)}
+  .seg button.on{background:var(--accent);color:#fff}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .fileinfo{display:flex;align-items:center;gap:9px;background:var(--accent-soft);border:1px solid #bfe6df;
+    border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:14px}
+  .fileinfo b{font-weight:650}
+  .fileinfo .chg{margin-left:auto;font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
+  .prev{margin-top:6px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:12.5px}
+  .prev b{color:var(--accent)}
+  .note{font-size:12px;color:var(--muted);background:var(--warn-soft);border:1px solid #fde9b9;border-radius:8px;padding:8px 11px;margin-bottom:13px}
+  .chkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;color:var(--ink)}
+  .chkrow input{width:16px;height:16px;accent-color:var(--accent)}
+  small.help{display:block;color:var(--faint);font-size:11.5px;margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <div class="topbar">
+    <div class="row1">
+      <div class="brand"><span class="logo">M</span> Matriz de Listados</div>
+      <div class="projbar">
+        <select id="projSelect" title="Proyecto activo"></select>
+        <button class="iconbtn" id="projNew" title="Nuevo proyecto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="iconbtn" id="projRename" title="Renombrar proyecto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+        <button class="iconbtn" id="projMenu" title="Más (duplicar, exportar, borrar)"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
+      </div>
+      <div class="spacer"></div>
+      <div class="saved" id="savedTag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 13 4 4L19 7"/></svg>Guardado</div>
+      <div class="census" id="census"></div>
+      <button class="btn ghost" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar</button>
+      <button class="btn" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/></svg>Matriz</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="listados">Listados <span class="n" id="tabNlist">0</span></button>
+    <button class="tab" data-tab="matriz">Matriz <span class="n" id="tabNmat">0</span></button>
+    <button class="tab" data-tab="dict">Diccionario <span class="n" id="tabNdict">0</span></button>
+  </div>
+
+  <div class="wrap">
+    <section class="view on" id="view-listados">
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="listSearch" placeholder="Buscar acción o columna…"></div>
+        <span class="hint">Renombrá la columna · arrastrá las tarjetas para reordenar · ✕ para quitar</span>
+      </div>
+      <div id="groups"></div>
+    </section>
+
+    <section class="view" id="view-matriz">
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="matSearch" placeholder="Buscar cliente (PDV)…"></div>
+        <span class="hint">Arrastrá encabezados para reordenar · doble clic para renombrar columna</span>
+      </div>
+      <div class="tablewrap" id="tablewrap"></div>
+      <div class="matnote" id="matNote"></div>
+    </section>
+
+    <section class="view" id="view-dict">
+      <div class="toolbar">
+        <button class="btn sm" id="dictImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar desde Excel</button>
+        <button class="btn ghost sm" id="dictAdd">+ fila</button>
+        <button class="btn ghost sm" id="dictApply" title="Re-clasificar listados que coincidan por Acción (no toca los editados a mano)">Re-aplicar a listados</button>
+        <span class="hint">Acción → Columna → Detalle · clasifica automáticamente al importar</span>
+      </div>
+      <div class="dicttable"><table class="dict"><thead><tr><th>Acción</th><th>Columna</th><th>Detalle</th><th class="delcol"></th></tr></thead><tbody id="dictBody"></tbody></table></div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ MODAL IMPORT ============ -->
+<div class="modal" id="importModal">
+  <div class="modal-card">
+    <div class="modal-h"><b id="impTitle">Importar listados</b><button class="x" id="impClose">✕</button></div>
+    <div class="modal-body">
+      <label class="drop" id="impDrop">
+        <strong>Arrastrá un Excel acá</strong>
+        <span>o tocá para elegirlo · .xlsx · .xls</span>
+        <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm">
+      </label>
+      <div id="impConfig" hidden>
+        <div class="fileinfo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><b id="impFileName"></b><span class="chg" id="impChange">Cambiar</span></div>
+        <div class="fld"><label>Hoja</label><select id="impSheet"></select></div>
+        <div class="seg" id="impSeg">
+          <button data-mode="auto" id="segAuto">Detectar bloques</button>
+          <button data-mode="map" class="on">Mapear columnas</button>
+        </div>
+
+        <div id="impAuto" hidden>
+          <div class="prev" id="autoPrev"></div>
+        </div>
+
+        <div id="impMap">
+          <div class="grid2">
+            <div class="fld"><label>Código de cliente (B2B) <span class="req">*</span></label><select id="mapCode"></select></div>
+            <div class="fld"><label>Agrupar por (Acción)</label><select id="mapAcc"></select><small class="help">Cada valor distinto = un listado</small></div>
+          </div>
+          <div class="grid2">
+            <div class="fld"><label>Columna (nombre)</label><select id="mapName"></select></div>
+            <div class="fld"><label>Detalle (valor)</label><select id="mapDet"></select></div>
+          </div>
+          <div class="grid2" id="defaults">
+            <div class="fld"><label>Nombre de columna por defecto</label><input type="text" id="defName" placeholder="ej. CORE"></div>
+            <div class="fld"><label>Detalle por defecto</label><input type="text" id="defDet" placeholder="ej. 0b 1% | 5b 4%"></div>
+          </div>
+          <small class="help">Si no mapeás “Acción” ni “Columna”, todo el archivo entra como un solo listado con el nombre/detalle por defecto. La clasificación por diccionario se aplica cuando hay match por Acción.</small>
+        </div>
+
+        <div class="prev" id="impPrev"></div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn ghost" id="impCancel">Cancelar</button>
+      <button class="btn" id="impAdd" disabled>Agregar al proyecto</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="dictFile" accept=".xlsx,.xls,.xlsm" style="display:none">
+<input type="file" id="projImportFile" accept=".json" style="display:none">
+
+<script>
+"use strict";
+/* ============================================================
+   Utilidades
+   ============================================================ */
+const $ = sel => document.querySelector(sel);
+const norm = s => (s==null?"":String(s)).normalize("NFD").replace(/[̀-ͯ]/g,"").trim().toLowerCase();
+const clean = s => (s==null?"":String(s)).trim();
+const pdvOf = b2b => { const s=String(b2b).trim(); return s.length>6 ? s.slice(-6) : s; };
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Number(n).toLocaleString("es-AR");
+const uid = () => "b"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const colLetter = i => { let s="",n=i; do{ s=String.fromCharCode(65+n%26)+s; n=Math.floor(n/26)-1; }while(n>=0); return s; };
+
+/* ============================================================
+   IndexedDB
+   ============================================================ */
+const DB = {
+  _db:null,
+  open(){ return new Promise((res,rej)=>{
+    const r=indexedDB.open("matrizListados",1);
+    r.onupgradeneeded=e=>{ const db=e.target.result;
+      if(!db.objectStoreNames.contains("projects")) db.createObjectStore("projects",{keyPath:"id"});
+      if(!db.objectStoreNames.contains("meta")) db.createObjectStore("meta",{keyPath:"k"}); };
+    r.onsuccess=e=>{ this._db=e.target.result; res(this._db); };
+    r.onerror=e=>rej(e.target.error);
+  }); },
+  put(store,val){ return new Promise((res,rej)=>{ const t=this._db.transaction(store,"readwrite"); t.objectStore(store).put(val); t.oncomplete=()=>res(); t.onerror=e=>rej(e.target.error); }); },
+  get(store,key){ return new Promise((res,rej)=>{ const rq=this._db.transaction(store,"readonly").objectStore(store).get(key); rq.onsuccess=()=>res(rq.result); rq.onerror=e=>rej(e.target.error); }); },
+  all(store){ return new Promise((res,rej)=>{ const rq=this._db.transaction(store,"readonly").objectStore(store).getAll(); rq.onsuccess=()=>res(rq.result); rq.onerror=e=>rej(e.target.error); }); },
+  del(store,key){ return new Promise((res,rej)=>{ const t=this._db.transaction(store,"readwrite"); t.objectStore(store).delete(key); t.oncomplete=()=>res(); t.onerror=e=>rej(e.target.error); }); },
+};
+
+/* ============================================================
+   Estado
+   ------------------------------------------------------------
+   project = { id, name, created, updated,
+       auxDict:[{accion,col,detalle}],
+       blocks:[{id, accion, col, detalle, manual, records:[{pdv,b2b}], source:{file,sheet,at}}],
+       colOrder:[names] }
+   ============================================================ */
+let PROJECT=null, PROJECTS=[];
+
+function newProject(name){
+  return { id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    name:name||"Proyecto 1", created:Date.now(), updated:Date.now(),
+    auxDict:[], blocks:[], colOrder:[] };
+}
+
+let saveTimer=null;
+function persist(){
+  if(!PROJECT) return;
+  PROJECT.updated=Date.now();
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    // guardar sin pdvSet (no existe; records ya es serializable)
+    await DB.put("projects", PROJECT);
+    await DB.put("meta",{k:"last",id:PROJECT.id});
+    flashSaved();
+  },250);
+}
+function flashSaved(){ const t=$("#savedTag"); t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1100); }
+
+/* diccionario map runtime */
+function dictMap(){ const m=new Map(); for(const d of PROJECT.auxDict){ const k=norm(d.accion); if(k) m.set(k,d); } return m; }
+
+/* ============================================================
+   Modelo derivado: columnas, filas, matriz (lógica verificada)
+   ============================================================ */
+function recomputeColumns(){
+  const seen=new Set(), order=[];
+  for(const c of PROJECT.colOrder){ if(c && PROJECT.blocks.some(b=>b.col===c) && !seen.has(c)){ seen.add(c); order.push(c); } }
+  for(const b of PROJECT.blocks){ const c=b.col; if(c && !seen.has(c)){ seen.add(c); order.push(c); } }
+  PROJECT.colOrder=order;
+  return order;
+}
+function rowOrder(){
+  const seen=new Set(), rows=[];
+  for(const b of PROJECT.blocks) for(const r of b.records) if(!seen.has(r.pdv)){ seen.add(r.pdv); rows.push(r.pdv); }
+  return rows;
+}
+function buildMatrix(){
+  const cols=recomputeColumns();
+  const map=new Map(); // pdv -> {col:detalle}  (primer bloque gana)
+  for(const b of PROJECT.blocks){
+    if(!b.col) continue;
+    for(const rec of b.records){
+      let m=map.get(rec.pdv); if(!m){ m={}; map.set(rec.pdv,m); }
+      if(!(b.col in m)) m[b.col]=b.detalle;
+    }
+  }
+  const header=["PDV",...cols];
+  const rows=rowOrder().map(pdv=>{ const m=map.get(pdv)||{}; return [pdv,...cols.map(c=> c in m ? m[c] : null)]; });
+  return {header,rows,cols};
+}
+
+/* clasificación efectiva al crear/recalcular un bloque (no pisa manual) */
+function classify(block){
+  if(block.manual) return;
+  const d=dictMap().get(norm(block.accion));
+  if(d){ if(d.col) block.col=d.col; if(d.detalle) block.detalle=d.detalle; }
+}
+
+/* ============================================================
+   Arranque
+   ============================================================ */
+(async function init(){
+  await DB.open();
+  PROJECTS=(await DB.all("projects"))||[];
+  const last=await DB.get("meta","last");
+  if(!PROJECTS.length){ PROJECT=newProject("Proyecto 1"); PROJECTS=[PROJECT]; await DB.put("projects",PROJECT); }
+  else PROJECT = PROJECTS.find(p=>p.id===(last&&last.id)) || PROJECTS[0];
+  // sanear estructura
+  PROJECTS.forEach(p=>{ p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[]; });
+  renderAll();
+})();
+
+function renderAll(){ renderProjects(); renderCensus(); renderGroups(); renderMatrix(); renderDict(); }
+
+/* ============================================================
+   Proyectos
+   ============================================================ */
+function renderProjects(){
+  const sel=$("#projSelect"); sel.innerHTML="";
+  PROJECTS.sort((a,b)=>b.updated-a.updated);
+  for(const p of PROJECTS){ const o=document.createElement("option"); o.value=p.id; o.textContent=p.name; if(p.id===PROJECT.id)o.selected=true; sel.appendChild(o); }
+}
+$("#projSelect").addEventListener("change",async e=>{ PROJECT=PROJECTS.find(p=>p.id===e.target.value); await DB.put("meta",{k:"last",id:PROJECT.id}); renderAll(); });
+$("#projNew").addEventListener("click",async()=>{ const n=prompt("Nombre del nuevo proyecto:","Proyecto "+(PROJECTS.length+1)); if(n==null)return; const p=newProject(clean(n)||("Proyecto "+(PROJECTS.length+1))); PROJECTS.push(p); PROJECT=p; await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll(); });
+$("#projRename").addEventListener("click",()=>{ const n=prompt("Nuevo nombre del proyecto:",PROJECT.name); if(n==null)return; PROJECT.name=clean(n)||PROJECT.name; persist(); renderProjects(); });
+$("#projMenu").addEventListener("click",async()=>{
+  const a=prompt("Acciones del proyecto «"+PROJECT.name+"»:\n\n1 = Duplicar\n2 = Exportar a .json (backup/mover de PC)\n3 = Importar proyecto desde .json\n4 = Borrar proyecto\n\nEscribí el número:");
+  if(a==="1"){ const c=JSON.parse(JSON.stringify(PROJECT)); c.id=newProject().id; c.name=PROJECT.name+" (copia)"; c.created=c.updated=Date.now(); PROJECTS.push(c); PROJECT=c; await DB.put("projects",c); await DB.put("meta",{k:"last",id:c.id}); renderAll(); }
+  else if(a==="2"){ const blob=new Blob([JSON.stringify(PROJECT,null,2)],{type:"application/json"}); const url=URL.createObjectURL(blob); const dl=document.createElement("a"); dl.href=url; dl.download=fileSafe(PROJECT.name)+".json"; dl.click(); URL.revokeObjectURL(url); }
+  else if(a==="3"){ $("#projImportFile").click(); }
+  else if(a==="4"){ if(PROJECTS.length<=1){ alert("No podés borrar el único proyecto. Creá otro antes."); return; } if(!confirm("¿Borrar definitivamente «"+PROJECT.name+"»? Esto no se puede deshacer.")) return; await DB.del("projects",PROJECT.id); PROJECTS=PROJECTS.filter(p=>p.id!==PROJECT.id); PROJECT=PROJECTS[0]; await DB.put("meta",{k:"last",id:PROJECT.id}); renderAll(); }
+});
+$("#projImportFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async ev=>{ try{ const p=JSON.parse(ev.target.result); p.id=newProject().id; p.name=(p.name||"Importado")+" (importado)"; p.created=p.updated=Date.now(); p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[]; PROJECTS.push(p); PROJECT=p; await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll(); }catch(err){ alert("No pude leer el .json: "+err.message); } }; r.readAsText(f); e.target.value=""; });
+
+/* ============================================================
+   Census + tabs
+   ============================================================ */
+function renderCensus(){
+  const cols=recomputeColumns(), nCli=rowOrder().length;
+  $("#census").innerHTML=`<b>${PROJECT.blocks.length}</b> listados <b>${fmt(nCli)}</b> clientes <b>${cols.length}</b> columnas`;
+  $("#tabNlist").textContent=PROJECT.blocks.length;
+  $("#tabNmat").textContent=cols.length;
+  $("#tabNdict").textContent=PROJECT.auxDict.length;
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("on"));
+  t.classList.add("on"); $("#view-"+t.dataset.tab).classList.add("on");
+}));
+
+/* ============================================================
+   Vista LISTADOS
+   ============================================================ */
+let listFilter="";
+$("#listSearch").addEventListener("input",e=>{ listFilter=norm(e.target.value); renderGroups(); });
+
+function renderGroups(){
+  recomputeColumns();
+  const cont=$("#groups"); cont.innerHTML="";
+  if(!PROJECT.blocks.length){
+    cont.innerHTML=`<div class="empty-state"><div class="big">Este proyecto está vacío</div>
+      Importá un Excel con listados de clientes para empezar.<br>
+      <button class="btn" onclick="document.getElementById('importBtn').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar listados</button></div>`;
+    return;
+  }
+  const groups=new Map(); for(const c of PROJECT.colOrder) groups.set(c,[]);
+  const unclassified=[];
+  for(const b of PROJECT.blocks){ if(!b.col) unclassified.push(b); else groups.get(b.col).push(b); }
+  const match=b=> !listFilter || norm(b.accion).includes(listFilter) || norm(b.col).includes(listFilter);
+  const renderGroup=(name,arr,isUn)=>{
+    const vis=arr.filter(match); if(!vis.length) return;
+    const cli=new Set(); arr.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
+    const g=document.createElement("div"); g.className="colgroup";
+    g.innerHTML=`<div class="colgroup-h"><span class="dot" style="background:${isUn?'#f59e0b':'var(--accent2)'}"></span>
+        <span class="name">${isUn?'Sin clasificar':esc(name)}</span>
+        <span class="meta">${arr.length} listado${arr.length>1?'s':''} · ${fmt(cli.size)} clientes</span></div>`;
+    const cards=document.createElement("div"); cards.className="cards";
+    vis.forEach(b=>cards.appendChild(cardEl(b)));
+    g.appendChild(cards); cont.appendChild(g);
+  };
+  for(const [name,arr] of groups) renderGroup(name,arr,false);
+  renderGroup("",unclassified,true);
+  if(!cont.children.length) cont.innerHTML=`<div class="empty-state">Sin resultados para “${esc($("#listSearch").value)}”.</div>`;
+}
+
+let dragBlockId=null;
+function cardEl(b){
+  const el=document.createElement("div");
+  el.className="card"+(b.col?"":" unclassified")+(b.manual?" manual":"");
+  el.draggable=true; el.dataset.id=b.id;
+  const srcTxt=b.source ? `${esc(b.source.file||"")}${b.source.sheet?" · "+esc(b.source.sheet):""}` : "";
+  el.innerHTML=`
+    <div class="top-actions">
+      <span class="grip" title="Arrastrar para reordenar"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+      <button class="xbtn" title="Quitar listado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="accion">${esc(b.accion)}</div>
+    ${srcTxt?`<div class="src">${srcTxt}</div>`:""}
+    ${b.detalle?`<div class="det" title="${esc(b.detalle)}">${esc(b.detalle)}</div>`:""}
+    <div class="colsel"><label>Col</label><input class="colinput" value="${esc(b.col)}" placeholder="nombre de columna…"></div>
+    <div class="foot"><span class="cnt">${fmt(b.records.length)} clientes</span>
+      <a class="lnk" data-dl><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/></svg>Descargar</a></div>`;
+  const inp=el.querySelector(".colinput");
+  inp.addEventListener("change",()=>{ b.col=clean(inp.value); b.manual=true; recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix(); });
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter") inp.blur(); });
+  el.querySelector("[data-dl]").addEventListener("click",ev=>{ ev.stopPropagation(); downloadBlock(b); });
+  el.querySelector(".xbtn").addEventListener("click",ev=>{ ev.stopPropagation(); if(!confirm(`¿Quitar el listado «${b.accion}» (${fmt(b.records.length)} clientes)?`))return; PROJECT.blocks=PROJECT.blocks.filter(x=>x.id!==b.id); recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix(); });
+  el.addEventListener("dragstart",e=>{ dragBlockId=b.id; el.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
+  el.addEventListener("dragend",()=>{ el.classList.remove("drag"); document.querySelectorAll(".card.over").forEach(c=>c.classList.remove("over")); });
+  el.addEventListener("dragover",e=>{ e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave",()=>el.classList.remove("over"));
+  el.addEventListener("drop",e=>{ e.preventDefault(); el.classList.remove("over"); reorderBlocks(dragBlockId,b.id); });
+  return el;
+}
+function reorderBlocks(fromId,toId){
+  if(!fromId||fromId===toId)return;
+  const arr=PROJECT.blocks, fi=arr.findIndex(b=>b.id===fromId), ti=arr.findIndex(b=>b.id===toId);
+  if(fi<0||ti<0)return;
+  const [m]=arr.splice(fi,1); arr.splice(ti,0,m);
+  persist(); renderCensus(); renderGroups(); renderMatrix();
+}
+
+/* ============================================================
+   Vista MATRIZ
+   ============================================================ */
+let matFilter="", dragColIdx=null; const PREVIEW=300;
+$("#matSearch").addEventListener("input",e=>{ matFilter=norm(e.target.value); renderMatrix(); });
+
+function renderMatrix(){
+  const {rows,cols}=buildMatrix();
+  const wrap=$("#tablewrap");
+  if(!cols.length){ wrap.innerHTML=`<div class="empty-state">No hay columnas clasificadas. Asigná un nombre de columna a los listados (o usá el Diccionario).</div>`; $("#matNote").textContent=""; return; }
+  const filtered=matFilter?rows.filter(r=>String(r[0]).toLowerCase().includes(matFilter)):rows;
+  const shown=filtered.slice(0,PREVIEW);
+  let html='<table class="matrix"><thead><tr><th class="pdvcol">PDV</th>';
+  cols.forEach((c,i)=>{ html+=`<th draggable="true" data-col="${i}" title="Doble clic para renombrar"><div class="th-in"><span class="th-grip"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.5"/><circle cx="15" cy="7" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="15" cy="17" r="1.5"/></svg></span><input class="rn" value="${esc(c)}" readonly></div></th>`; });
+  html+="</tr></thead><tbody>";
+  for(const r of shown){ html+=`<tr><td class="pdvcol">${esc(r[0])}</td>`; for(let i=1;i<r.length;i++){ const v=r[i]; html+= v==null?`<td class="val empty">·</td>`:`<td class="val">${esc(v)}</td>`; } html+="</tr>"; }
+  html+="</tbody></table>"; wrap.innerHTML=html;
+  $("#matNote").textContent=`Mostrando ${fmt(shown.length)} de ${fmt(filtered.length)} clientes${matFilter?" (filtrados)":""} · ${cols.length} columnas · la descarga incluye todas las filas`;
+  wrap.querySelectorAll("th[data-col]").forEach(th=>{
+    const i=+th.dataset.col, input=th.querySelector(".rn");
+    th.addEventListener("dblclick",()=>{ input.readOnly=false; input.focus(); input.select(); });
+    input.addEventListener("blur",()=>{ input.readOnly=true; commitRename(cols[i],clean(input.value)); });
+    input.addEventListener("keydown",e=>{ if(e.key==="Enter")input.blur(); if(e.key==="Escape"){ input.value=cols[i]; input.blur(); } });
+    th.addEventListener("dragstart",e=>{ if(!input.readOnly){e.preventDefault();return;} dragColIdx=i; th.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
+    th.addEventListener("dragend",()=>{ th.classList.remove("drag"); wrap.querySelectorAll("th.over").forEach(x=>x.classList.remove("over")); });
+    th.addEventListener("dragover",e=>{ e.preventDefault(); th.classList.add("over"); });
+    th.addEventListener("dragleave",()=>th.classList.remove("over"));
+    th.addEventListener("drop",e=>{ e.preventDefault(); th.classList.remove("over"); reorderColumns(dragColIdx,i); });
+  });
+}
+function reorderColumns(from,to){ if(from==null||from===to)return; const a=PROJECT.colOrder,[m]=a.splice(from,1); a.splice(to,0,m); persist(); renderMatrix(); }
+function commitRename(oldName,newName){
+  if(!newName||newName===oldName)return;
+  PROJECT.blocks.forEach(b=>{ if(b.col===oldName){ b.col=newName; b.manual=true; } });
+  const idx=PROJECT.colOrder.indexOf(oldName);
+  if(idx>=0){ if(PROJECT.colOrder.includes(newName)) PROJECT.colOrder.splice(idx,1); else PROJECT.colOrder[idx]=newName; }
+  persist(); renderCensus(); renderGroups(); renderMatrix();
+}
+
+/* ============================================================
+   Vista DICCIONARIO
+   ============================================================ */
+function renderDict(){
+  const tb=$("#dictBody"); tb.innerHTML="";
+  PROJECT.auxDict.forEach((d,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><input data-f="accion" value="${esc(d.accion)}" placeholder="Acción…"></td>
+      <td><input data-f="col" value="${esc(d.col)}" placeholder="Columna…"></td>
+      <td><input data-f="detalle" value="${esc(d.detalle)}" placeholder="Detalle…"></td>
+      <td class="delcol"><button class="delx" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
+    tr.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",()=>{ d[inp.dataset.f]=clean(inp.value); persist(); }));
+    tr.querySelector(".delx").addEventListener("click",()=>{ PROJECT.auxDict.splice(i,1); persist(); renderDict(); renderCensus(); });
+    tb.appendChild(tr);
+  });
+  if(!PROJECT.auxDict.length) tb.innerHTML=`<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--muted)">Sin entradas. Importá una hoja Auxiliar desde Excel o agregá filas a mano.</td></tr>`;
+}
+$("#dictAdd").addEventListener("click",()=>{ PROJECT.auxDict.push({accion:"",col:"",detalle:""}); persist(); renderDict(); renderCensus(); });
+$("#dictApply").addEventListener("click",()=>{ let n=0; PROJECT.blocks.forEach(b=>{ if(b.manual)return; const before=b.col+"|"+b.detalle; classify(b); if(before!==b.col+"|"+b.detalle)n++; }); recomputeColumns(); persist(); renderAll(); alert(`Diccionario re-aplicado. ${n} listado(s) actualizado(s). (Los editados a mano no se tocan.)`); });
+$("#dictImport").addEventListener("click",()=>$("#dictFile").click());
+$("#dictFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; readWB(f,wb=>{ importDictFromWB(wb); e.target.value=""; }); });
+function importDictFromWB(wb){
+  let name=wb.SheetNames.find(n=>norm(n)==="auxiliar")||wb.SheetNames[0];
+  const aoa=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:null});
+  const h=(aoa[0]||[]).map(norm);
+  const ia=h.indexOf("accion"), il=h.indexOf("listado")>=0?h.indexOf("listado"):h.indexOf("columna"), id=h.indexOf("detalle");
+  if(ia<0){ alert(`La hoja "${name}" no tiene una columna "Acción". Revisá los encabezados.`); return; }
+  let add=0;
+  for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const acc=clean(row[ia]); if(!acc)continue;
+    PROJECT.auxDict.push({accion:acc, col:clean(row[il>=0?il:1]), detalle:clean(row[id>=0?id:2])}); add++; }
+  persist(); renderDict(); renderCensus();
+  alert(`Importadas ${add} entradas al diccionario desde la hoja "${name}".`);
+}
+
+/* ============================================================
+   IMPORTAR LISTADOS (wizard)
+   ============================================================ */
+let IMP={ wb:null, file:null, headers:[], mode:"map" };
+const modal=$("#importModal");
+$("#importBtn").addEventListener("click",openImport);
+$("#impClose").addEventListener("click",closeImport);
+$("#impCancel").addEventListener("click",closeImport);
+modal.addEventListener("click",e=>{ if(e.target===modal) closeImport(); });
+function openImport(){ IMP={wb:null,file:null,headers:[],mode:"map"}; $("#impConfig").hidden=true; $("#impDrop").style.display=""; $("#impFileName").textContent=""; $("#impAdd").disabled=true; $("#impFile").value=""; modal.classList.add("on"); }
+function closeImport(){ modal.classList.remove("on"); }
+
+const impDrop=$("#impDrop"), impFile=$("#impFile");
+impDrop.addEventListener("dragover",e=>{e.preventDefault();impDrop.classList.add("over");});
+impDrop.addEventListener("dragleave",()=>impDrop.classList.remove("over"));
+impDrop.addEventListener("drop",e=>{e.preventDefault();impDrop.classList.remove("over"); if(e.dataTransfer.files[0]) loadImpFile(e.dataTransfer.files[0]);});
+impFile.addEventListener("change",e=>{ if(e.target.files[0]) loadImpFile(e.target.files[0]); });
+$("#impChange").addEventListener("click",()=>{ $("#impDrop").style.display=""; $("#impConfig").hidden=true; $("#impFile").value=""; });
+
+function readWB(file,cb){ const r=new FileReader(); r.onload=ev=>{ try{ cb(XLSX.read(new Uint8Array(ev.target.result),{type:"array"})); }catch(err){ alert("No pude leer el archivo: "+err.message); } }; r.readAsArrayBuffer(file); }
+
+function loadImpFile(file){
+  readWB(file,wb=>{
+    IMP.wb=wb; IMP.file=file;
+    $("#impDrop").style.display="none"; $("#impConfig").hidden=false; $("#impFileName").textContent=file.name;
+    const sel=$("#impSheet"); sel.innerHTML="";
+    wb.SheetNames.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o); });
+    // elegir hoja por defecto: "listados" si existe
+    const def=wb.SheetNames.find(n=>norm(n)==="listados")||wb.SheetNames[0]; sel.value=def;
+    onSheetChange();
+  });
+}
+$("#impSheet").addEventListener("change",onSheetChange);
+function onSheetChange(){
+  const name=$("#impSheet").value;
+  const aoa=XLSX.utils.sheet_to_json(IMP.wb.Sheets[name],{header:1,raw:true,defval:null});
+  IMP.aoa=aoa; IMP.headers=(aoa[0]||[]).map((c,i)=> clean(c) || ("Columna "+colLetter(i)) );
+  const nb=(aoa[0]||[]).filter(c=>norm(c)==="b2b").length;
+  $("#segAuto").style.display = nb>0 ? "" : "none";
+  if(nb>0){ setMode("auto"); } else { setMode("map"); }
+  // poblar selects de mapeo
+  const opts=(withNone)=> (withNone?`<option value="">— ninguno —</option>`:"") + IMP.headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join("");
+  $("#mapCode").innerHTML=opts(false);
+  $("#mapAcc").innerHTML=opts(true);
+  $("#mapName").innerHTML=opts(true);
+  $("#mapDet").innerHTML=opts(true);
+  // adivinar columnas por nombre
+  const find=names=>{ for(const n of names){ const i=IMP.headers.findIndex(h=>norm(h)===n); if(i>=0)return i; } return -1; };
+  const ic=find(["b2b","codigo","cliente","cod"]); if(ic>=0)$("#mapCode").value=ic;
+  const ia=find(["accion"]); $("#mapAcc").value= ia>=0?ia:"";
+  const inm=find(["listado","columna","nombre"]); $("#mapName").value= inm>=0?inm:"";
+  const idd=find(["detalle","valor"]); $("#mapDet").value= idd>=0?idd:"";
+  updatePreview();
+}
+$("#impSeg").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
+function setMode(m){ IMP.mode=m; $("#impSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.mode===m)); $("#impAuto").hidden=m!=="auto"; $("#impMap").hidden=m!=="map"; updatePreview(); }
+["#mapCode","#mapAcc","#mapName","#mapDet","#defName","#defDet"].forEach(s=>$(s).addEventListener("input",updatePreview));
+
+function buildImpBlocks(){
+  const name=$("#impSheet").value, aoa=IMP.aoa, src={file:IMP.file.name, sheet:name, at:Date.now()};
+  const dict=dictMap();
+  if(IMP.mode==="auto"){
+    const header=aoa[0]||[]; const starts=[]; header.forEach((c,i)=>{ if(norm(c)==="b2b") starts.push(i); });
+    const blocks=[];
+    starts.forEach((s,bi)=>{
+      const seen=new Set(), recs=[]; let accion="",colRaw="",detRaw="";
+      for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[s]; if(b2b==null||clean(b2b)==="")continue;
+        const pdv=(row[s+2]!=null&&clean(row[s+2])!=="")?clean(row[s+2]):pdvOf(b2b);
+        if(!accion){ accion=clean(row[s+1]); colRaw=clean(row[s+3]); detRaw=clean(row[s+4]); }
+        if(seen.has(pdv))continue; seen.add(pdv); recs.push({pdv,b2b:clean(b2b)}); }
+      if(!recs.length)return;
+      const d=dict.get(norm(accion));
+      const col=(d&&d.col)?d.col:colRaw, detalle=(d&&d.detalle)?d.detalle:detRaw;
+      blocks.push({id:uid(),accion:accion||("Listado "+(bi+1)),col,detalle,manual:false,records:recs,source:src});
+    });
+    return blocks;
+  }
+  // modo mapeo
+  const ci=+$("#mapCode").value;
+  const ai=$("#mapAcc").value==="" ? -1 : +$("#mapAcc").value;
+  const ni=$("#mapName").value==="" ? -1 : +$("#mapName").value;
+  const di=$("#mapDet").value==="" ? -1 : +$("#mapDet").value;
+  const defName=clean($("#defName").value), defDet=clean($("#defDet").value);
+  if(isNaN(ci)) return [];
+  // agrupador: acción, si no nombre, si no único
+  const groups=new Map(); // key -> {accion, nameVal, detVal, seen, recs}
+  for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[ci]; if(b2b==null||clean(b2b)==="")continue;
+    const pdv=pdvOf(b2b);
+    let key, accion;
+    if(ai>=0){ accion=clean(row[ai]); key="A:"+accion; }
+    else if(ni>=0){ accion=clean(row[ni]); key="N:"+accion; }
+    else { accion=defName||"Listado"; key="U"; }
+    let g=groups.get(key); if(!g){ g={accion, nameVal:"", detVal:"", seen:new Set(), recs:[]}; groups.set(key,g); }
+    if(ni>=0 && !g.nameVal) g.nameVal=clean(row[ni]);
+    if(di>=0 && !g.detVal) g.detVal=clean(row[di]);
+    if(g.seen.has(pdv))continue; g.seen.add(pdv); g.recs.push({pdv,b2b:clean(b2b)});
+  }
+  const blocks=[];
+  for(const g of groups.values()){ if(!g.recs.length)continue;
+    const d=dict.get(norm(g.accion));
+    const col = g.nameVal || (d&&d.col?d.col:"") || defName || "";
+    const detalle = g.detVal || (d&&d.detalle?d.detalle:"") || defDet || "";
+    blocks.push({id:uid(),accion:g.accion,col,detalle,manual:false,records:g.recs,source:src});
+  }
+  return blocks;
+}
+function updatePreview(){
+  try{
+    const blocks=buildImpBlocks();
+    const cli=new Set(); blocks.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
+    const cols=new Set(); blocks.forEach(b=>{ if(b.col)cols.add(b.col); });
+    const uncl=blocks.filter(b=>!b.col).length;
+    const valid=blocks.length>0;
+    $("#impAdd").disabled=!valid;
+    $("#impPrev").innerHTML = valid
+      ? `Se van a agregar <b>${blocks.length}</b> listado(s) · <b>${fmt(cli.size)}</b> clientes · <b>${cols.size}</b> columna(s)${uncl?` · <b style="color:var(--warn)">${uncl} sin clasificar</b>`:""}`
+      : `Elegí al menos la columna de <b>Código de cliente</b>.`;
+  }catch(err){ $("#impPrev").textContent="Revisá el mapeo: "+err.message; $("#impAdd").disabled=true; }
+}
+$("#impAdd").addEventListener("click",()=>{
+  const blocks=buildImpBlocks();
+  if(!blocks.length)return;
+  PROJECT.blocks.push(...blocks);
+  recomputeColumns(); persist(); renderAll(); closeImport();
+  // saltar a Listados
+  document.querySelector('.tab[data-tab="listados"]').click();
+});
+
+/* ============================================================
+   Export
+   ============================================================ */
+$("#exportBtn").addEventListener("click",()=>{
+  const {header,rows}=buildMatrix();
+  if(!rows.length){ alert("No hay datos para exportar."); return; }
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Matriz");
+  XLSX.writeFile(wb, fileSafe(PROJECT.name)+"_matriz.xlsx");
+});
+function downloadBlock(b){
+  const aoa=[["PDV","B2B","Columna","Detalle"],...b.records.map(r=>[r.pdv,r.b2b,b.col,b.detalle])];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,sheetSafe(b.accion));
+  XLSX.writeFile(wb, fileSafe(PROJECT.name)+"_"+fileSafe(b.accion)+".xlsx");
+}
+const sheetSafe=s=>(s||"Listado").replace(/[\\/?*\[\]:]/g,"").slice(0,31)||"Listado";
+const fileSafe=s=>(s||"proyecto").replace(/[^\w\-]+/g,"_").slice(0,40)||"proyecto";
+</script>
+</body>
+</html>
