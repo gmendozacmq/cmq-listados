@@ -163,6 +163,9 @@
   table.lst tr.grp .dot{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:8px;vertical-align:middle}
   table.lst tr.grp .gname{font-weight:700;font-size:13px;vertical-align:middle}
   table.lst tr.grp .gmeta{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:10px;vertical-align:middle}
+  table.lst tr.grp td{cursor:pointer;user-select:none}
+  table.lst tr.grp:hover td{background:#eef2f5}
+  table.lst tr.grp .chev{display:inline-block;width:11px;color:var(--muted);font-size:10px;margin-right:3px;vertical-align:middle}
   .badge{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:5px;font-weight:700;white-space:nowrap}
   .badge.dic{background:var(--accent-soft);color:var(--accent)}
   .badge.arch{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
@@ -267,6 +270,13 @@
   .note{font-size:12px;color:var(--muted);background:var(--warn-soft);border:1px solid #fde9b9;border-radius:8px;padding:8px 11px;margin-bottom:13px}
   .chkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;color:var(--ink)}
   .chkrow input{width:16px;height:16px;accent-color:var(--accent)}
+  #distList{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:9px}
+  .distrow{display:flex;align-items:center;gap:9px;padding:8px 11px;border-bottom:1px solid var(--line2);font-size:13px;cursor:pointer}
+  .distrow:last-child{border-bottom:0}
+  .distrow:hover{background:var(--panel2)}
+  .distrow input{width:16px;height:16px;accent-color:var(--accent)}
+  .distrow b{font-family:var(--mono);font-weight:700}
+  .distrow .dcount{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
   small.help{display:block;color:var(--faint);font-size:11.5px;margin-top:4px}
 </style>
 </head>
@@ -306,7 +316,8 @@
           <button data-f="manual" title="Solo listados editados a mano">✋ Manual</button>
           <button data-f="auto" title="Solo listados clasificados por el diccionario">Auto</button>
         </div>
-        <span class="hint">Editá Columna/Detalle · ✋ = editado a mano (clic para volver a automático) · arrastrá para reordenar</span>
+        <button class="btn ghost sm" id="collapseAll" title="Plegar o desplegar todos los grupos">Colapsar todo</button>
+        <span class="hint">Clic en un grupo (Columna) para plegarlo · ✋ = editado a mano · arrastrá para reordenar</span>
         <button class="btn" id="addListBtn" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Agregar listados</button>
       </div>
       <div id="groups"></div>
@@ -405,6 +416,7 @@
     </div>
     <div class="modal-f">
       <button class="btn ghost" id="addMore" hidden>+ Más archivos</button>
+      <button class="btn ghost" id="addDist" hidden title="Elegir de qué distribuidores importar">Distribuidores…</button>
       <button class="btn ghost" id="addCancel">Cancelar</button>
       <button class="btn" id="addCommit" disabled>Agregar al proyecto</button>
     </div>
@@ -423,6 +435,25 @@
       <button class="btn ghost" id="confAllOld">Mantener actuales</button>
       <button class="btn ghost" id="confAllNew">Usar nuevos</button>
       <button class="btn" id="confApply">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL DISTRIBUIDORES (B2B compuesto) ============ -->
+<div class="modal" id="distModal">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-h"><b>Distribuidores detectados</b><button class="x" id="distClose">✕</button></div>
+    <div class="modal-body">
+      <div class="note">Detecté códigos <b>B2B</b> (Distribuidor + Cliente). Elegí de qué distribuidores importar los clientes. El cliente se identifica por sus 8 dígitos.</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn ghost sm" id="distMarkAll">Marcar todos</button>
+        <button class="btn ghost sm" id="distMarkNone">Desmarcar todos</button>
+        <span class="hint" id="distSel" style="margin-left:auto;align-self:center;font-family:var(--mono);font-size:11.5px;color:var(--muted)"></span>
+      </div>
+      <div id="distList"></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" id="distApply">Aplicar</button>
     </div>
   </div>
 </div>
@@ -450,6 +481,37 @@ function blockStartCols(aoa){
   const hdr=aoa[0]||[], h=hdr.map(norm), out=[];
   hdr.forEach((c,s)=>{ if(isB2BHeader(c) && (h[s+1]==="accion"||h[s+2]==="pdv"||h[s+3]==="listado"||h[s+4]==="detalle")) out.push(s); });
   return out;
+}
+/* ---- Código B2B compuesto: [6 díg Distribuidor][8 díg Cliente], 13-14 díg (puede perder ceros) ---- */
+const onlyDigits = s => String(s==null?"":s).replace(/\D/g,"");
+function splitB2B(code){
+  const d=onlyDigits(code);
+  if(d.length===13||d.length===14){ const p=d.padStart(14,"0"); return { dist:p.slice(0,6), cliente:(p.slice(6).replace(/^0+/,"")||"0") }; }
+  return null;
+}
+/* cliente (pdv) de un código: usa cliente(8 díg) si es B2B compuesto, si no el PDV explícito o pdvOf */
+function clientOf(code, explicitPdv){
+  const sp=splitB2B(code);
+  if(sp) return { pdv:sp.cliente, dist:sp.dist };
+  const e=clean(explicitPdv);
+  return { pdv: e!==""? e : pdvOf(code), dist:null };
+}
+/* resumen de distribuidores en bloques (con rawRecords): Map dist -> Set(pdv) */
+function distSummary(blocks){
+  const m=new Map();
+  blocks.forEach(b=>(b.rawRecords||[]).forEach(r=>{ if(r.dist!=null){ if(!m.has(r.dist))m.set(r.dist,new Set()); m.get(r.dist).add(r.pdv); } }));
+  return m;
+}
+/* arma records finales desde rawRecords: filtra por distribuidores elegidos (null=todos) y deduplica por pdv */
+function finalizeBlocks(blocks, selectedDist){
+  blocks.forEach(b=>{
+    const seen=new Set(), recs=[];
+    for(const r of (b.rawRecords||[])){
+      if(selectedDist && r.dist!=null && !selectedDist.has(r.dist)) continue;
+      if(seen.has(r.pdv)) continue; seen.add(r.pdv); recs.push({pdv:r.pdv,b2b:r.b2b});
+    }
+    b.records=recs;
+  });
 }
 
 /* ============================================================
@@ -597,15 +659,22 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
    Vista LISTADOS
    ============================================================ */
 let listFilter="", manualFilter="all";
+const UNCL="_uncl"; let collapsedCols=new Set();
 $("#listSearch").addEventListener("input",e=>{ listFilter=norm(e.target.value); renderGroups(); });
 $("#manualFilter").querySelectorAll("button").forEach(btn=>btn.addEventListener("click",()=>{
   manualFilter=btn.dataset.f;
   $("#manualFilter").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.f===manualFilter));
   renderGroups();
 }));
+function groupKeysNow(){ const keys=[], cols=new Set(); PROJECT.blocks.forEach(b=>{ if(b.col)cols.add(b.col); }); cols.forEach(c=>keys.push(c)); if(PROJECT.blocks.some(b=>!b.col)) keys.push(UNCL); return keys; }
+$("#collapseAll").addEventListener("click",()=>{
+  if(collapsedCols.size) collapsedCols.clear(); else groupKeysNow().forEach(k=>collapsedCols.add(k));
+  renderGroups();
+});
 
 function renderGroups(){
   recomputeColumns();
+  $("#collapseAll").textContent = collapsedCols.size?"Expandir todo":"Colapsar todo";
   const cont=$("#groups"); cont.innerHTML="";
   if(!PROJECT.blocks.length){
     cont.innerHTML=`<div class="empty-state"><div class="big">Este proyecto está vacío</div>
@@ -628,11 +697,13 @@ function renderGroups(){
   const renderGroup=(name,arr,isUn)=>{
     const vis=arr.filter(match); if(!vis.length) return;
     any=true;
+    const key=isUn?UNCL:name, collapsed=collapsedCols.has(key);
     const cli=new Set(); arr.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
-    const gtr=document.createElement("tr"); gtr.className="grp";
-    gtr.innerHTML=`<td colspan="7"><span class="dot" style="background:${isUn?'#f59e0b':'var(--accent2)'}"></span><span class="gname">${isUn?'Sin clasificar':esc(name)}</span><span class="gmeta">${arr.length} listado${arr.length>1?'s':''} · ${fmt(cli.size)} clientes</span></td>`;
+    const gtr=document.createElement("tr"); gtr.className="grp"+(collapsed?" collapsed":"");
+    gtr.innerHTML=`<td colspan="7"><span class="chev">${collapsed?"▸":"▾"}</span><span class="dot" style="background:${isUn?'#f59e0b':'var(--accent2)'}"></span><span class="gname">${isUn?'Sin clasificar':esc(name)}</span><span class="gmeta">${arr.length} listado${arr.length>1?'s':''} · ${fmt(cli.size)} clientes${collapsed?" · plegado":""}</span></td>`;
+    gtr.addEventListener("click",()=>{ if(collapsedCols.has(key))collapsedCols.delete(key); else collapsedCols.add(key); renderGroups(); });
     tb.appendChild(gtr);
-    vis.forEach(b=>tb.appendChild(rowEl(b,isUn)));
+    if(!collapsed) vis.forEach(b=>tb.appendChild(rowEl(b,isUn)));
   };
   for(const [name,arr] of groups) renderGroup(name,arr,false);
   renderGroup("",unclassified,true);
@@ -942,49 +1013,48 @@ function setMode(m){ IMP.mode=m; $("#impSeg").querySelectorAll("button").forEach
 function buildImpBlocks(){
   const name=$("#impSheet").value, aoa=IMP.aoa, src={file:IMP.file.name, sheet:name, at:Date.now()};
   const dict=dictMap();
+  let blocks=[];
   if(IMP.mode==="auto"){
     const starts=blockStartCols(aoa);
-    const blocks=[];
     starts.forEach((s,bi)=>{
-      const seen=new Set(), recs=[]; let accion="",colRaw="",detRaw="";
+      const raw=[]; let accion="",colRaw="",detRaw="",got=false;
       for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[s]; if(b2b==null||clean(b2b)==="")continue;
-        const pdv=(row[s+2]!=null&&clean(row[s+2])!=="")?clean(row[s+2]):pdvOf(b2b);
-        if(!accion){ accion=clean(row[s+1]); colRaw=clean(row[s+3]); detRaw=clean(row[s+4]); }
-        if(seen.has(pdv))continue; seen.add(pdv); recs.push({pdv,b2b:clean(b2b)}); }
-      if(!recs.length)return;
+        if(!got){ accion=clean(row[s+1]); colRaw=clean(row[s+3]); detRaw=clean(row[s+4]); got=true; }
+        const {pdv,dist}=clientOf(b2b, row[s+2]);
+        raw.push({pdv,b2b:clean(b2b),dist}); }
+      if(!raw.length)return;
       const d=dict.get(norm(accion));
       const col=(d&&d.col)?d.col:colRaw, detalle=(d&&d.detalle)?d.detalle:detRaw;
-      blocks.push({id:uid(),accion:accion||("Listado "+(bi+1)),col,detalle,manual:false,records:recs,source:src});
+      blocks.push({id:uid(),accion:accion||("Listado "+(bi+1)),col,detalle,manual:false,rawRecords:raw,records:[],source:src});
     });
-    return blocks;
+  } else {
+    // modo mapeo
+    const ci=+$("#mapCode").value;
+    const ai=$("#mapAcc").value==="" ? -1 : +$("#mapAcc").value;
+    const ni=$("#mapName").value==="" ? -1 : +$("#mapName").value;
+    const di=$("#mapDet").value==="" ? -1 : +$("#mapDet").value;
+    const defName=clean($("#defName").value), defDet=clean($("#defDet").value);
+    if(isNaN(ci)) return [];
+    const groups=new Map(); // key -> {accion, nameVal, detVal, raw}
+    for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[ci]; if(b2b==null||clean(b2b)==="")continue;
+      let key, accion;
+      if(ai>=0){ accion=clean(row[ai]); key="A:"+accion; }
+      else if(ni>=0){ accion=clean(row[ni]); key="N:"+accion; }
+      else { accion=defName||"Listado"; key="U"; }
+      let g=groups.get(key); if(!g){ g={accion, nameVal:"", detVal:"", raw:[]}; groups.set(key,g); }
+      if(ni>=0 && !g.nameVal) g.nameVal=clean(row[ni]);
+      if(di>=0 && !g.detVal) g.detVal=clean(row[di]);
+      const {pdv,dist}=clientOf(b2b, null);
+      g.raw.push({pdv,b2b:clean(b2b),dist});
+    }
+    for(const g of groups.values()){ if(!g.raw.length)continue;
+      const d=dict.get(norm(g.accion));
+      const col = g.nameVal || (d&&d.col?d.col:"") || defName || "";
+      const detalle = g.detVal || (d&&d.detalle?d.detalle:"") || defDet || "";
+      blocks.push({id:uid(),accion:g.accion,col,detalle,manual:false,rawRecords:g.raw,records:[],source:src});
+    }
   }
-  // modo mapeo
-  const ci=+$("#mapCode").value;
-  const ai=$("#mapAcc").value==="" ? -1 : +$("#mapAcc").value;
-  const ni=$("#mapName").value==="" ? -1 : +$("#mapName").value;
-  const di=$("#mapDet").value==="" ? -1 : +$("#mapDet").value;
-  const defName=clean($("#defName").value), defDet=clean($("#defDet").value);
-  if(isNaN(ci)) return [];
-  // agrupador: acción, si no nombre, si no único
-  const groups=new Map(); // key -> {accion, nameVal, detVal, seen, recs}
-  for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[ci]; if(b2b==null||clean(b2b)==="")continue;
-    const pdv=pdvOf(b2b);
-    let key, accion;
-    if(ai>=0){ accion=clean(row[ai]); key="A:"+accion; }
-    else if(ni>=0){ accion=clean(row[ni]); key="N:"+accion; }
-    else { accion=defName||"Listado"; key="U"; }
-    let g=groups.get(key); if(!g){ g={accion, nameVal:"", detVal:"", seen:new Set(), recs:[]}; groups.set(key,g); }
-    if(ni>=0 && !g.nameVal) g.nameVal=clean(row[ni]);
-    if(di>=0 && !g.detVal) g.detVal=clean(row[di]);
-    if(g.seen.has(pdv))continue; g.seen.add(pdv); g.recs.push({pdv,b2b:clean(b2b)});
-  }
-  const blocks=[];
-  for(const g of groups.values()){ if(!g.recs.length)continue;
-    const d=dict.get(norm(g.accion));
-    const col = g.nameVal || (d&&d.col?d.col:"") || defName || "";
-    const detalle = g.detVal || (d&&d.detalle?d.detalle:"") || defDet || "";
-    blocks.push({id:uid(),accion:g.accion,col,detalle,manual:false,records:g.recs,source:src});
-  }
+  finalizeBlocks(blocks,null);  // records de preview (todos los distribuidores)
   return blocks;
 }
 function updatePreview(){
@@ -1005,11 +1075,17 @@ $("#impAdd").addEventListener("click",()=>{
   const d=extractDictFromWB(IMP.wb,false); if(d) mergeDict(d);
   const blocks=buildImpBlocks();
   if(!blocks.length)return;
-  integrateBlocks(blocks, ()=>{
-    recomputeColumns(); persist(); renderAll(); closeImport();
-    // saltar a Listados
-    document.querySelector('.tab[data-tab="listados"]').click();
-  });
+  const proceed=(sel)=>{
+    finalizeBlocks(blocks, sel);
+    const real=blocks.filter(b=>b.records.length).map(b=>({id:b.id,accion:b.accion,col:b.col,detalle:b.detalle,manual:false,records:b.records,source:b.source}));
+    if(!real.length){ alert("No quedaron clientes con los distribuidores elegidos."); return; }
+    integrateBlocks(real, ()=>{
+      recomputeColumns(); persist(); renderAll(); closeImport();
+      document.querySelector('.tab[data-tab="listados"]').click();
+    });
+  };
+  const summary=distSummary(blocks);
+  if(summary.size) openDistChooser(summary, proceed); else proceed(null);
 });
 
 /* ============================================================
@@ -1021,7 +1097,7 @@ $("#addListBtn").addEventListener("click",openAdd);
 $("#addClose").addEventListener("click",closeAdd);
 $("#addCancel").addEventListener("click",closeAdd);
 addModal.addEventListener("click",e=>{ if(e.target===addModal) closeAdd(); });
-function openAdd(){ ADD={blocks:[],dict:[]}; $("#addReview").hidden=true; $("#addDrop").style.display=""; $("#addMore").hidden=true; $("#addCommit").disabled=true; $("#addFile").value=""; addModal.classList.add("on"); }
+function openAdd(){ ADD={blocks:[],dict:[],selectedDist:null}; $("#addReview").hidden=true; $("#addDrop").style.display=""; $("#addMore").hidden=true; $("#addDist").hidden=true; $("#addCommit").disabled=true; $("#addFile").value=""; addModal.classList.add("on"); }
 function closeAdd(){ addModal.classList.remove("on"); }
 
 const addDrop=$("#addDrop"), addFileInp=$("#addFile");
@@ -1031,6 +1107,10 @@ addDrop.addEventListener("drop",e=>{e.preventDefault();addDrop.classList.remove(
 addFileInp.addEventListener("change",e=>{ if(e.target.files.length) addFiles(e.target.files); e.target.value=""; });
 $("#addMore").addEventListener("click",()=>$("#addFile").click());
 $("#addCommit").addEventListener("click",commitAdd);
+$("#addDist").addEventListener("click",()=>{
+  const summary=distSummary(ADD.blocks); if(!summary.size){ alert("No hay códigos B2B con distribuidor en estos listados."); return; }
+  openDistChooser(summary, sel=>{ ADD.selectedDist=sel; finalizeBlocks(ADD.blocks, sel); classifyAdd(); renderAddReview(); }, ADD.selectedDist);
+});
 
 /* lector de workbook que siempre resuelve (null si falla) */
 function readWBp(file){ return new Promise(res=>{ const r=new FileReader();
@@ -1046,13 +1126,13 @@ function parseBlocks(aoa, src){
   if(starts.length){
     // formato bloques (lado a lado)
     starts.forEach(s=>{
-      const seen=new Set(), recs=[]; let accion="",colRaw="",detRaw="",got=false;
+      const raw=[]; let accion="",colRaw="",detRaw="",got=false;
       for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[s]; if(b2b==null||clean(b2b)==="")continue;
-        const pdv=(row[s+2]!=null&&clean(row[s+2])!=="")?clean(row[s+2]):pdvOf(b2b);
         if(!got){ accion=clean(row[s+1]); colRaw=clean(row[s+3]); detRaw=clean(row[s+4]); got=true; }
-        if(seen.has(pdv))continue; seen.add(pdv); recs.push({pdv,b2b:clean(b2b)}); }
-      if(!recs.length)return;
-      blocks.push({id:uid(), accion, colRaw, detRaw, col:"", detalle:"", manual:false, fromDict:false, records:recs, source:src});
+        const {pdv,dist}=clientOf(b2b, row[s+2]);
+        raw.push({pdv,b2b:clean(b2b),dist}); }
+      if(!raw.length)return;
+      blocks.push({id:uid(), accion, colRaw, detRaw, col:"", detalle:"", manual:false, fromDict:false, rawRecords:raw, records:[], source:src});
     });
     return blocks;
   }
@@ -1060,11 +1140,11 @@ function parseBlocks(aoa, src){
   const codeCol=hdr.findIndex(isB2BHeader);
   if(codeCol>=0){
     const pdvCol=h.indexOf("pdv");
-    const seen=new Set(), recs=[];
+    const raw=[];
     for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const code=row[codeCol]; if(code==null||clean(code)==="")continue;
-      const pdv=(pdvCol>=0 && row[pdvCol]!=null && clean(row[pdvCol])!=="")?clean(row[pdvCol]):pdvOf(code);
-      if(seen.has(pdv))continue; seen.add(pdv); recs.push({pdv,b2b:clean(code)}); }
-    if(recs.length) return [{id:uid(), accion:"", colRaw:"", detRaw:"", col:"", detalle:"", manual:false, fromDict:false, records:recs, source:src}];
+      const {pdv,dist}=clientOf(code, pdvCol>=0?row[pdvCol]:null);
+      raw.push({pdv,b2b:clean(code),dist}); }
+    if(raw.length) return [{id:uid(), accion:"", colRaw:"", detRaw:"", col:"", detalle:"", manual:false, fromDict:false, rawRecords:raw, records:[], source:src}];
   }
   return [];
 }
@@ -1082,8 +1162,12 @@ async function addFiles(fileList){
     const d=extractDictFromWB(wb,false); if(d) d.forEach(e=>ADD.dict.push(e));
   }
   if(!ADD.blocks.length){ alert("No encontré listados en bloques (columnas «B2B» o «Cliente») en los archivos elegidos."); return; }
-  classifyAdd();
-  renderAddReview();
+  const summary=distSummary(ADD.blocks);
+  if(summary.size){
+    openDistChooser(summary, sel=>{ ADD.selectedDist=sel; finalizeBlocks(ADD.blocks, sel); classifyAdd(); renderAddReview(); });
+  } else {
+    ADD.selectedDist=null; finalizeBlocks(ADD.blocks, null); classifyAdd(); renderAddReview();
+  }
 }
 
 /* diccionario combinado: el del proyecto + el que vino en los archivos importados */
@@ -1112,6 +1196,7 @@ function renderAddReview(){
   $("#addDrop").style.display="none";
   $("#addReview").hidden=false;
   $("#addMore").hidden=false;
+  $("#addDist").hidden = distSummary(ADD.blocks).size===0;
   const tb=$("#addBody"); tb.innerHTML="";
   ADD.blocks.forEach((p,i)=>{
     const tr=document.createElement("tr");
@@ -1160,6 +1245,7 @@ function commitAdd(){
   const dictToMerge=ADD.dict.slice();
   const replacements=[], additions=[];
   ADD.blocks.forEach((p,i)=>{
+    if(!p.records.length) return; // sin clientes (p.ej. distribuidor no seleccionado)
     const blk={ id:p.id, accion:clean(p.accion)||("Listado "+(i+1)), col:clean(p.col), detalle:clean(p.detalle),
       manual:p.manual, records:p.records, source:p.source };
     if(p.toDict && clean(p.accion) && clean(p.col)) dictToMerge.push({accion:clean(p.accion),col:clean(p.col),detalle:clean(p.detalle)});
@@ -1261,6 +1347,42 @@ $("#confAllOld").addEventListener("click",()=>{ CONF.groups.forEach(g=>g.keep=0)
 $("#confAllNew").addEventListener("click",()=>{ CONF.groups.forEach(g=>{ let best=g.options.length-1;
   if(g.options.length>2){ best=0; g.options.forEach((o,j)=>{ if(o.block.records.length>g.options[best].block.records.length) best=j; }); }
   g.keep=best; }); renderConflicts(); });
+
+/* ============================================================
+   Selector de distribuidores (códigos B2B compuestos)
+   ============================================================ */
+let DIST=null;
+function openDistChooser(summary, onApply, prev){
+  const dists=[...summary.keys()].sort();
+  const counts=new Map([...summary].map(([d,s])=>[d,s.size]));
+  const sel=new Set(prev?[...prev].filter(d=>counts.has(d)):dists);
+  if(!sel.size) dists.forEach(d=>sel.add(d));
+  DIST={dists,counts,selected:sel,onApply};
+  renderDist(); $("#distModal").classList.add("on");
+}
+function renderDist(){
+  const c=$("#distList"); c.innerHTML="";
+  DIST.dists.forEach(d=>{
+    const lab=document.createElement("label"); lab.className="distrow";
+    lab.innerHTML=`<input type="checkbox" ${DIST.selected.has(d)?"checked":""}><b>${esc(d)}</b><span class="dcount">${fmt(DIST.counts.get(d))} clientes</span>`;
+    lab.querySelector("input").addEventListener("change",e=>{ if(e.target.checked)DIST.selected.add(d); else DIST.selected.delete(d); updateDistSel(); });
+    c.appendChild(lab);
+  });
+  updateDistSel();
+}
+function updateDistSel(){
+  let cli=0; DIST.selected.forEach(d=>cli+=DIST.counts.get(d)||0);
+  $("#distSel").textContent=`${DIST.selected.size}/${DIST.dists.length} distribuidores · ${fmt(cli)} clientes`;
+}
+function closeDist(){ $("#distModal").classList.remove("on"); DIST=null; }
+$("#distMarkAll").addEventListener("click",()=>{ DIST.dists.forEach(d=>DIST.selected.add(d)); renderDist(); });
+$("#distMarkNone").addEventListener("click",()=>{ DIST.selected.clear(); renderDist(); });
+$("#distClose").addEventListener("click",()=>{ const cb=DIST.onApply; closeDist(); cb(null); }); // X = todos
+$("#distModal").addEventListener("click",e=>{ if(e.target===$("#distModal")){ const cb=DIST.onApply; closeDist(); cb(null); } });
+$("#distApply").addEventListener("click",()=>{
+  const sel = DIST.selected.size===DIST.dists.length ? null : new Set(DIST.selected);
+  const cb=DIST.onApply; closeDist(); cb(sel);
+});
 
 /* ============================================================
    Export
