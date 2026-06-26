@@ -675,7 +675,7 @@ $("#collapseAll").addEventListener("click",()=>{
 function renderGroups(){
   recomputeColumns();
   $("#collapseAll").textContent = collapsedCols.size?"Expandir todo":"Colapsar todo";
-  const cont=$("#groups"); cont.innerHTML="";
+  const cont=$("#groups"); const _old=cont.querySelector(".ltable"); const _sc=_old?_old.scrollTop:0; cont.innerHTML="";
   if(!PROJECT.blocks.length){
     cont.innerHTML=`<div class="empty-state"><div class="big">Este proyecto está vacío</div>
       Importá un Excel con listados de clientes, o arrastrá una Matriz guardada para seguir trabajándola.<br>
@@ -732,6 +732,7 @@ function renderGroups(){
     $("#dupResolve").addEventListener("click",resolveDuplicates);
   }
   table.appendChild(tb); wrap.appendChild(table); cont.appendChild(wrap);
+  wrap.scrollTop=_sc;  // preservar posición de scroll al re-dibujar (p.ej. al plegar grupos)
 }
 
 let dragBlockId=null;
