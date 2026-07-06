@@ -151,6 +151,16 @@
   table.lst input[type=text]:focus,table.lst input.colinput:focus,table.lst input.detinput:focus,table.lst input.accinput:focus{outline:0;border-color:var(--accent);background:#fff}
   table.lst tr.lrow:hover input{background:var(--panel2)}
   table.lst tr.manual input.colinput{color:var(--accent);font-weight:600}
+  table.lst tr.noclass input.accinput:disabled,table.lst tr.noclass input.colinput:disabled,
+  table.lst tr.noclass input.detinput:disabled,table.lst tr.noclass select.repsel:disabled{
+    color:var(--faint);-webkit-text-fill-color:var(--faint);font-weight:400;opacity:.6;background:var(--panel2)}
+  table.lst tr.flash td{background:var(--neg-soft)!important;transition:background .3s}
+  .erroverlay{position:fixed;z-index:120;font-family:var(--mono);font-size:10px;text-transform:uppercase;
+    letter-spacing:.03em;font-weight:700;color:#fff;background:var(--neg);border-radius:6px;padding:4px 9px;
+    white-space:nowrap;box-shadow:var(--shadow-lg);transform:translateY(-50%);opacity:0;transition:opacity .18s;pointer-events:none}
+  .erroverlay.show{opacity:1}
+  .erroverlay::before{content:"";position:absolute;left:-5px;top:50%;transform:translateY(-50%);
+    border:5px solid transparent;border-right-color:var(--neg);border-left:0}
   .mflag{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.03em;padding:2px 6px;border-radius:5px;
     font-weight:700;background:var(--warn-soft);color:var(--warn);border:1px solid #fde9b9;vertical-align:middle;margin-left:6px;white-space:nowrap}
   .mflag:hover{background:var(--warn);color:#fff;border-color:var(--warn)}
@@ -254,22 +264,9 @@
   input[type=file]{display:none}
   .fld{margin-bottom:13px}
   .fld>label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);font-family:var(--mono);margin-bottom:5px}
-  .fld>label .req{color:var(--neg)}
   .fld select,.fld input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:13.5px;background:var(--panel)}
   .fld select:focus,.fld input:focus{outline:0;border-color:var(--accent)}
-  .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
-  .seg button{flex:1;padding:9px;font-size:13px;font-weight:600;color:var(--muted);background:var(--panel2)}
-  .seg button.on{background:var(--accent);color:#fff}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-  .fileinfo{display:flex;align-items:center;gap:9px;background:var(--accent-soft);border:1px solid #bfe6df;
-    border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:14px}
-  .fileinfo b{font-weight:650}
-  .fileinfo .chg{margin-left:auto;font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
-  .prev{margin-top:6px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:12.5px}
-  .prev b{color:var(--accent)}
   .note{font-size:12px;color:var(--muted);background:var(--warn-soft);border:1px solid #fde9b9;border-radius:8px;padding:8px 11px;margin-bottom:13px}
-  .chkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;color:var(--ink)}
-  .chkrow input{width:16px;height:16px;accent-color:var(--accent)}
   #distList{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:9px}
   .distrow{display:flex;align-items:center;gap:9px;padding:8px 11px;border-bottom:1px solid var(--line2);font-size:13px;cursor:pointer}
   .distrow:last-child{border-bottom:0}
@@ -277,7 +274,6 @@
   .distrow input{width:16px;height:16px;accent-color:var(--accent)}
   .distrow b{font-family:var(--mono);font-weight:700}
   .distrow .dcount{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
-  small.help{display:block;color:var(--faint);font-size:11.5px;margin-top:4px}
 </style>
 </head>
 <body>
@@ -296,7 +292,7 @@
       <div class="spacer"></div>
       <div class="saved" id="savedTag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 13 4 4L19 7"/></svg>Guardado</div>
       <div class="census" id="census"></div>
-      <button class="btn ghost" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar</button>
+      <button class="btn ghost" id="importBtn" title="Importar un Excel (listados en bloques, una lista de clientes, o una Matriz guardada) y elegir si crea listados nuevos o reemplaza existentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar / Agregar</button>
       <button class="btn" id="exportBtn" title="Descarga un Excel con la Matriz + los Listados + el Diccionario, para volver a abrirlo después"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Guardar</button>
     </div>
   </div>
@@ -310,15 +306,14 @@
   <div class="wrap">
     <section class="view on" id="view-listados">
       <div class="toolbar">
-        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="listSearch" placeholder="Buscar acción o columna…"></div>
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="listSearch" placeholder="Buscar acción o segmento…"></div>
         <div class="segfilter" id="manualFilter">
           <button data-f="all" class="on">Todos</button>
           <button data-f="manual" title="Solo listados editados a mano">✋ Manual</button>
           <button data-f="auto" title="Solo listados clasificados por el diccionario">Auto</button>
         </div>
         <button class="btn ghost sm" id="collapseAll" title="Plegar o desplegar todos los grupos">Colapsar todo</button>
-        <span class="hint">Clic en un grupo (Columna) para plegarlo · ✋ = editado a mano · arrastrá para reordenar</span>
-        <button class="btn" id="addListBtn" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Agregar listados</button>
+        <span class="hint">Clic en un grupo (Segmento) para plegarlo · ✋ = editado a mano · arrastrá para reordenar · usá <b>Importar / Agregar</b> (arriba) para sumar listados</span>
       </div>
       <div id="groups"></div>
     </section>
@@ -326,7 +321,7 @@
     <section class="view" id="view-matriz">
       <div class="toolbar">
         <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="matSearch" placeholder="Buscar cliente (PDV)…"></div>
-        <span class="hint">Arrastrá encabezados para reordenar · doble clic para renombrar columna</span>
+        <span class="hint">Arrastrá encabezados para reordenar · doble clic para renombrar segmento</span>
         <button class="btn ghost" id="copyMatrix" style="margin-left:auto" title="Copia toda la matriz (con encabezados) para pegar en Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar al portapapeles</button>
       </div>
       <div class="tablewrap" id="tablewrap"></div>
@@ -338,77 +333,33 @@
         <button class="btn sm" id="dictImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar desde Excel</button>
         <button class="btn ghost sm" id="dictAdd">+ fila</button>
         <button class="btn ghost sm" id="dictApply" title="Re-clasificar todos los listados que coincidan por Acción (no toca los editados a mano)">Re-aplicar a listados</button>
-        <span class="hint">Acción → Columna → Detalle · los cambios se aplican solos a los listados (salvo los editados a mano)</span>
+        <span class="hint">Acción → Segmento → Detalle · los cambios se aplican solos a los listados (salvo los editados a mano)</span>
       </div>
       <div id="dictWarn"></div>
-      <div class="dicttable"><table class="dict"><thead><tr><th>Acción</th><th>Columna</th><th>Detalle</th><th class="delcol"></th></tr></thead><tbody id="dictBody"></tbody></table></div>
+      <div class="dicttable"><table class="dict"><thead><tr><th>Acción</th><th>Segmento</th><th>Detalle</th><th class="delcol"></th></tr></thead><tbody id="dictBody"></tbody></table></div>
     </section>
-  </div>
-</div>
-
-<!-- ============ MODAL IMPORT ============ -->
-<div class="modal" id="importModal">
-  <div class="modal-card">
-    <div class="modal-h"><b id="impTitle">Importar listados</b><button class="x" id="impClose">✕</button></div>
-    <div class="modal-body">
-      <label class="drop" id="impDrop">
-        <strong>Arrastrá un Excel acá</strong>
-        <span>o tocá para elegirlo · .xlsx · .xls</span>
-        <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm">
-      </label>
-      <div id="impConfig" hidden>
-        <div class="fileinfo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><b id="impFileName"></b><span class="chg" id="impChange">Cambiar</span></div>
-        <div class="fld"><label>Hoja</label><select id="impSheet"></select></div>
-        <div class="seg" id="impSeg">
-          <button data-mode="auto" id="segAuto">Detectar bloques</button>
-          <button data-mode="map" class="on">Mapear columnas</button>
-        </div>
-
-        <div id="impAuto" hidden>
-          <div class="prev" id="autoPrev"></div>
-        </div>
-
-        <div id="impMap">
-          <div class="grid2">
-            <div class="fld"><label>Código de cliente (B2B) <span class="req">*</span></label><select id="mapCode"></select></div>
-            <div class="fld"><label>Agrupar por (Acción)</label><select id="mapAcc"></select><small class="help">Cada valor distinto = un listado</small></div>
-          </div>
-          <div class="grid2">
-            <div class="fld"><label>Columna (nombre)</label><select id="mapName"></select></div>
-            <div class="fld"><label>Detalle (valor)</label><select id="mapDet"></select></div>
-          </div>
-          <div class="grid2" id="defaults">
-            <div class="fld"><label>Nombre de columna por defecto</label><input type="text" id="defName" placeholder="ej. CORE"></div>
-            <div class="fld"><label>Detalle por defecto</label><input type="text" id="defDet" placeholder="ej. 0b 1% | 5b 4%"></div>
-          </div>
-          <small class="help">Si no mapeás “Acción” ni “Columna”, todo el archivo entra como un solo listado con el nombre/detalle por defecto. La clasificación por diccionario se aplica cuando hay match por Acción.</small>
-        </div>
-
-        <div class="prev" id="impPrev"></div>
-      </div>
-    </div>
-    <div class="modal-f">
-      <button class="btn ghost" id="impCancel">Cancelar</button>
-      <button class="btn" id="impAdd" disabled>Agregar al proyecto</button>
-    </div>
   </div>
 </div>
 
 <!-- ============ MODAL AGREGAR LISTADOS ============ -->
 <div class="modal" id="addModal">
   <div class="modal-card" style="max-width:780px">
-    <div class="modal-h"><b>Agregar listados</b><button class="x" id="addClose">✕</button></div>
+    <div class="modal-h"><b>Importar / Agregar listados</b><button class="x" id="addClose">✕</button></div>
     <div class="modal-body">
       <label class="drop" id="addDrop">
         <strong>Arrastrá uno o más Excel acá</strong>
-        <span>listados en bloques (B2B · Acción · PDV · Listado · Detalle) · podés soltar varios a la vez</span>
+        <span>bloques (B2B · Acción · PDV · Listado · Detalle), una lista de clientes, o una Matriz guardada · podés soltar varios</span>
         <input type="file" id="addFile" accept=".xlsx,.xls,.xlsm" multiple>
       </label>
+      <div id="addMap" hidden>
+        <div class="note">No reconocí el formato de este archivo. Elegí en qué columna están los <b>códigos de cliente</b>; el resto se ignora y entra como un solo listado (lo nombrás en el paso siguiente).</div>
+        <div id="addMapList"></div>
+      </div>
       <div id="addReview" hidden>
         <div class="note" id="addNote"></div>
         <div class="ltable" style="max-height:46vh;margin-bottom:0">
           <table class="lst">
-            <thead><tr><th>Acción</th><th>Columna</th><th>Detalle</th><th title="Reemplazar un listado existente con este (en vez de agregarlo nuevo)">Reemplaza a</th><th title="Guardar la regla Acción→Columna→Detalle en el diccionario">Dicc</th><th class="cnum">Clientes</th><th>Origen</th><th></th></tr></thead>
+            <thead><tr><th>Acción</th><th>Segmento</th><th>Detalle</th><th title="Reemplazar un listado existente con este (en vez de agregarlo nuevo)">Reemplaza a</th><th class="cnum">Clientes</th><th>Origen</th><th title="Agregar el listado sin Segmento/Detalle; lo clasificás después">Sin clasif.</th><th></th></tr></thead>
             <tbody id="addBody"></tbody>
           </table>
         </div>
@@ -418,7 +369,7 @@
       <button class="btn ghost" id="addMore" hidden>+ Más archivos</button>
       <button class="btn ghost" id="addDist" hidden title="Elegir de qué distribuidores importar">Distribuidores…</button>
       <button class="btn ghost" id="addCancel">Cancelar</button>
-      <button class="btn" id="addCommit" disabled>Agregar al proyecto</button>
+      <button class="btn" id="addCommit" disabled>Continuar</button>
     </div>
   </div>
 </div>
@@ -614,6 +565,7 @@ function classify(block){
   else PROJECT = PROJECTS.find(p=>p.id===(last&&last.id)) || PROJECTS[0];
   // sanear estructura
   PROJECTS.forEach(p=>{ p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[]; });
+  if(ensureDictCoverage()) persist();   // sana el proyecto activo si tenía listados auto sin regla
   renderAll();
 })();
 
@@ -627,7 +579,7 @@ function renderProjects(){
   PROJECTS.sort((a,b)=>b.updated-a.updated);
   for(const p of PROJECTS){ const o=document.createElement("option"); o.value=p.id; o.textContent=p.name; if(p.id===PROJECT.id)o.selected=true; sel.appendChild(o); }
 }
-$("#projSelect").addEventListener("change",async e=>{ PROJECT=PROJECTS.find(p=>p.id===e.target.value); await DB.put("meta",{k:"last",id:PROJECT.id}); renderAll(); });
+$("#projSelect").addEventListener("change",async e=>{ PROJECT=PROJECTS.find(p=>p.id===e.target.value); await DB.put("meta",{k:"last",id:PROJECT.id}); if(ensureDictCoverage()) persist(); renderAll(); });
 $("#projNew").addEventListener("click",async()=>{ const n=prompt("Nombre del nuevo proyecto:","Proyecto "+(PROJECTS.length+1)); if(n==null)return; const p=newProject(clean(n)||("Proyecto "+(PROJECTS.length+1))); PROJECTS.push(p); PROJECT=p; await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll(); });
 $("#projRename").addEventListener("click",()=>{ const n=prompt("Nuevo nombre del proyecto:",PROJECT.name); if(n==null)return; PROJECT.name=clean(n)||PROJECT.name; persist(); renderProjects(); });
 $("#projMenu").addEventListener("click",async()=>{
@@ -644,7 +596,7 @@ $("#projImportFile").addEventListener("change",e=>{ const f=e.target.files[0]; i
    ============================================================ */
 function renderCensus(){
   const cols=recomputeColumns(), nCli=rowOrder().length;
-  $("#census").innerHTML=`<b>${PROJECT.blocks.length}</b> listados <b>${fmt(nCli)}</b> clientes <b>${cols.length}</b> columnas`;
+  $("#census").innerHTML=`<b>${PROJECT.blocks.length}</b> listados <b>${fmt(nCli)}</b> clientes <b>${cols.length}</b> segmentos`;
   $("#tabNlist").textContent=PROJECT.blocks.length;
   $("#tabNmat").textContent=cols.length;
   $("#tabNdict").textContent=PROJECT.auxDict.length;
@@ -691,7 +643,7 @@ function renderGroups(){
 
   const wrap=document.createElement("div"); wrap.className="ltable";
   const table=document.createElement("table"); table.className="lst";
-  table.innerHTML=`<thead><tr><th class="cgrip"></th><th>Acción</th><th>Columna</th><th>Detalle</th><th class="cnum">Clientes</th><th>Origen</th><th class="cact"></th></tr></thead>`;
+  table.innerHTML=`<thead><tr><th class="cgrip"></th><th>Segmento</th><th>Acción</th><th>Detalle</th><th class="cnum">Clientes</th><th>Origen</th><th class="cact"></th></tr></thead>`;
   const tb=document.createElement("tbody");
   let any=false;
   const renderGroup=(name,arr,isUn)=>{
@@ -717,7 +669,7 @@ function renderGroups(){
       <button class="btn sm" id="batchAuto">Volver todos a automático</button>`;
     cont.appendChild(a);
     $("#batchAuto").addEventListener("click",()=>{
-      if(!confirm(`¿Volver ${visManual.length} listado(s) a automático?\n\nTomarán Columna y Detalle del diccionario según la Acción (los que no tengan entrada en el diccionario mantienen sus valores).`)) return;
+      if(!confirm(`¿Volver ${visManual.length} listado(s) a automático?\n\nTomarán Segmento y Detalle del diccionario según la Acción (los que no tengan entrada en el diccionario mantienen sus valores).`)) return;
       visManual.forEach(b=>{ b.manual=false; classify(b); });
       recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix();
     });
@@ -743,8 +695,8 @@ function rowEl(b,isUn){
   const srcTxt=b.source ? `${esc(b.source.file||"")}${b.source.sheet?" · "+esc(b.source.sheet):""}` : "";
   tr.innerHTML=`
     <td class="cgrip"><span class="grip" title="Arrastrar para reordenar"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span></td>
+    <td><input class="colinput" value="${esc(b.col)}" placeholder="segmento…"></td>
     <td class="acc">${esc(b.accion)}${b.manual?`<button class="mflag" title="Editado a mano — clic para volver a automático (clasifica por la Acción según el diccionario)">✋ manual</button>`:""}</td>
-    <td><input class="colinput" value="${esc(b.col)}" placeholder="columna…"></td>
     <td><input class="detinput" value="${esc(b.detalle)}" placeholder="detalle…"></td>
     <td class="cnum">${fmt(b.records.length)}</td>
     <td class="src" title="${srcTxt}">${srcTxt}</td>
@@ -757,7 +709,7 @@ function rowEl(b,isUn){
   di.addEventListener("keydown",e=>{ if(e.key==="Enter") di.blur(); });
   const mf=tr.querySelector(".mflag");
   if(mf) mf.addEventListener("click",ev=>{ ev.stopPropagation();
-    if(!confirm(`¿Volver «${b.accion}» a automático?\n\nVa a tomar Columna y Detalle del diccionario según la Acción (si no hay entrada en el diccionario, mantiene los valores actuales).`)) return;
+    if(!confirm(`¿Volver «${b.accion}» a automático?\n\nVa a tomar Segmento y Detalle del diccionario según la Acción (si no hay entrada en el diccionario, mantiene los valores actuales).`)) return;
     b.manual=false; classify(b); recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix();
   });
   tr.querySelector("[data-dl]").addEventListener("click",ev=>{ ev.stopPropagation(); downloadBlock(b); });
@@ -786,7 +738,7 @@ $("#matSearch").addEventListener("input",e=>{ matFilter=norm(e.target.value); re
 function renderMatrix(){
   const {rows,cols}=buildMatrix();
   const wrap=$("#tablewrap");
-  if(!cols.length){ wrap.innerHTML=`<div class="empty-state">No hay columnas clasificadas. Asigná un nombre de columna a los listados (o usá el Diccionario).</div>`; $("#matNote").textContent=""; return; }
+  if(!cols.length){ wrap.innerHTML=`<div class="empty-state">No hay segmentos clasificados. Asigná un nombre de segmento a los listados (o usá el Diccionario).</div>`; $("#matNote").textContent=""; return; }
   const filtered=matFilter?rows.filter(r=>String(r[0]).toLowerCase().includes(matFilter)):rows;
   const shown=filtered.slice(0,PREVIEW);
   let html='<table class="matrix"><thead><tr><th class="pdvcol">PDV</th>';
@@ -794,7 +746,7 @@ function renderMatrix(){
   html+="</tr></thead><tbody>";
   for(const r of shown){ html+=`<tr><td class="pdvcol">${esc(r[0])}</td>`; for(let i=1;i<r.length;i++){ const v=r[i]; html+= v==null?`<td class="val empty">·</td>`:`<td class="val">${esc(v)}</td>`; } html+="</tr>"; }
   html+="</tbody></table>"; wrap.innerHTML=html;
-  $("#matNote").textContent=`Mostrando ${fmt(shown.length)} de ${fmt(filtered.length)} clientes${matFilter?" (filtrados)":""} · ${cols.length} columnas · la descarga incluye todas las filas`;
+  $("#matNote").textContent=`Mostrando ${fmt(shown.length)} de ${fmt(filtered.length)} clientes${matFilter?" (filtrados)":""} · ${cols.length} segmentos · la descarga incluye todas las filas`;
   wrap.querySelectorAll("th[data-col]").forEach(th=>{
     const i=+th.dataset.col, input=th.querySelector(".rn");
     th.addEventListener("dblclick",()=>{ input.readOnly=false; input.focus(); input.select(); });
@@ -821,6 +773,20 @@ function commitRename(oldName,newName){
    ============================================================ */
 /* re-clasifica los listados NO editados a mano según el diccionario actual; devuelve cuántos cambiaron */
 function reapplyDict(){ let n=0; PROJECT.blocks.forEach(b=>{ if(b.manual)return; const before=b.col+"|"+b.detalle; classify(b); if(before!==b.col+"|"+b.detalle)n++; }); recomputeColumns(); return n; }
+/* INVARIANTE: todo listado AUTO (no-manual) debe tener SU entrada en el diccionario,
+   para que siempre se pueda gestionar desde ahí y nunca quede "roto" (auto sin regla).
+   Crea la entrada faltante tomando la Columna/Detalle del propio listado. Devuelve cuántas creó. */
+function ensureDictCoverage(){
+  const have=new Set(); for(const d of PROJECT.auxDict){ const k=norm(d.accion); if(k) have.add(k); }
+  let added=0;
+  for(const b of PROJECT.blocks){
+    if(b.manual) continue;                 // los manuales se gestionan a mano, no necesitan regla
+    const k=norm(b.accion); if(!k || have.has(k)) continue;
+    PROJECT.auxDict.push({accion:b.accion, col:b.col, detalle:b.detalle});
+    have.add(k); added++;
+  }
+  return added;
+}
 /* duplicados en el diccionario (por Acción) */
 function dictDupCount(){ const seen=new Set(); let n=0; for(const d of PROJECT.auxDict){ const k=norm(d.accion); if(!k)continue; if(seen.has(k))n++; else seen.add(k); } return n; }
 function dedupeDict(){ const seen=new Map(), out=[]; let removed=0;
@@ -842,12 +808,18 @@ function renderDict(){
   PROJECT.auxDict.forEach((d,i)=>{
     const tr=document.createElement("tr");
     tr.innerHTML=`<td><input data-f="accion" value="${esc(d.accion)}" placeholder="Acción…"></td>
-      <td><input data-f="col" value="${esc(d.col)}" placeholder="Columna…"></td>
+      <td><input data-f="col" value="${esc(d.col)}" placeholder="Segmento…"></td>
       <td><input data-f="detalle" value="${esc(d.detalle)}" placeholder="Detalle…"></td>
       <td class="delcol"><button class="delx" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
     // editar una fila → guardar y re-aplicar automáticamente a la matriz (sin tocar los editados a mano)
     tr.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",()=>{ d[inp.dataset.f]=clean(inp.value); reapplyDict(); persist(); renderCensus(); renderGroups(); renderMatrix(); }));
-    tr.querySelector(".delx").addEventListener("click",()=>{ PROJECT.auxDict.splice(i,1); reapplyDict(); persist(); renderDict(); renderCensus(); renderGroups(); renderMatrix(); });
+    tr.querySelector(".delx").addEventListener("click",()=>{
+      const k=norm(d.accion);
+      // al borrar la regla, los listados AUTO que dependían de ella pasan a manual
+      // (conservan Columna/Detalle y siguen gestionables): nunca quedan huérfanos
+      if(k) PROJECT.blocks.forEach(b=>{ if(!b.manual && norm(b.accion)===k) b.manual=true; });
+      PROJECT.auxDict.splice(i,1); reapplyDict(); persist(); renderDict(); renderCensus(); renderGroups(); renderMatrix();
+    });
     tb.appendChild(tr);
   });
   if(!PROJECT.auxDict.length) tb.innerHTML=`<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--muted)">Sin entradas. Importá una hoja Auxiliar desde Excel o agregá filas a mano.</td></tr>`;
@@ -865,7 +837,7 @@ function extractDictFromWB(wb, allowFallback){
   const h=(aoa[0]||[]).map(norm);
   const ia=h.indexOf("accion");
   if(ia<0) return null;
-  const il=h.indexOf("listado")>=0?h.indexOf("listado"):h.indexOf("columna"), id=h.indexOf("detalle");
+  const il=h.indexOf("segmento")>=0?h.indexOf("segmento"):h.indexOf("listado")>=0?h.indexOf("listado"):h.indexOf("columna"), id=h.indexOf("detalle");
   const out=[];
   for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const acc=clean(row[ia]); if(!acc)continue;
     out.push({accion:acc, col:clean(row[il>=0?il:1]), detalle:clean(row[id>=0?id:2])}); }
@@ -890,24 +862,8 @@ function importDictFromWB(wb){
 }
 
 /* ============================================================
-   IMPORTAR LISTADOS (wizard)
+   Lectura de Excel + abrir Matriz guardada (compartido por el flujo único)
    ============================================================ */
-let IMP={ wb:null, file:null, headers:[], mode:"map" };
-const modal=$("#importModal");
-$("#importBtn").addEventListener("click",openImport);
-$("#impClose").addEventListener("click",closeImport);
-$("#impCancel").addEventListener("click",closeImport);
-modal.addEventListener("click",e=>{ if(e.target===modal) closeImport(); });
-function openImport(){ IMP={wb:null,file:null,headers:[],mode:"map"}; $("#impConfig").hidden=true; $("#impDrop").style.display=""; $("#impFileName").textContent=""; $("#impAdd").disabled=true; $("#impFile").value=""; modal.classList.add("on"); }
-function closeImport(){ modal.classList.remove("on"); }
-
-const impDrop=$("#impDrop"), impFile=$("#impFile");
-impDrop.addEventListener("dragover",e=>{e.preventDefault();impDrop.classList.add("over");});
-impDrop.addEventListener("dragleave",()=>impDrop.classList.remove("over"));
-impDrop.addEventListener("drop",e=>{e.preventDefault();impDrop.classList.remove("over"); if(e.dataTransfer.files[0]) loadImpFile(e.dataTransfer.files[0]);});
-impFile.addEventListener("change",e=>{ if(e.target.files[0]) loadImpFile(e.target.files[0]); });
-$("#impChange").addEventListener("click",()=>{ $("#impDrop").style.display=""; $("#impConfig").hidden=true; $("#impFile").value=""; });
-
 function readWB(file,cb){ const r=new FileReader(); r.onload=ev=>{ try{ cb(XLSX.read(new Uint8Array(ev.target.result),{type:"array"})); }catch(err){ alert("No pude leer el archivo: "+err.message); } }; r.readAsArrayBuffer(file); }
 
 /* ---- abrir una Matriz guardada por la herramienta (hojas Listados + Auxiliar) ---- */
@@ -937,7 +893,7 @@ function buildProjectFromSaved(wb,saved){
   const aname=wb.SheetNames.find(n=>norm(n)==="auxiliar"||norm(n)==="diccionario");
   if(aname){ const ax=XLSX.utils.sheet_to_json(wb.Sheets[aname],{header:1,raw:true,defval:null});
     const ah=(ax[0]||[]).map(norm);
-    const ia=ah.indexOf("accion"), il=ah.indexOf("listado")>=0?ah.indexOf("listado"):ah.indexOf("columna"), idd=ah.indexOf("detalle");
+    const ia=ah.indexOf("accion"), il=ah.indexOf("segmento")>=0?ah.indexOf("segmento"):ah.indexOf("listado")>=0?ah.indexOf("listado"):ah.indexOf("columna"), idd=ah.indexOf("detalle");
     for(let r=1;r<ax.length;r++){ const row=ax[r]; if(!row)continue; const acc=clean(row[ia>=0?ia:0]); if(!acc)continue;
       auxDict.push({accion:acc, col:clean(row[il>=0?il:1]), detalle:clean(row[idd>=0?idd:2])}); } }
   // orden de columnas (desde la hoja Matriz, salteando "PDV")
@@ -953,7 +909,7 @@ function openSavedFlow(file,wb,saved){
   const opt=prompt(`Detecté una Matriz guardada en «${file.name}»:\n`+
     `• ${data.blocks.length} listados (${fmt(cli.size)} clientes)\n`+
     `• ${data.auxDict.length} entradas de diccionario\n`+
-    `• ${data.colOrder.length} columnas\n\n`+
+    `• ${data.colOrder.length} segmentos\n\n`+
     `1 = Abrir como proyecto NUEVO\n`+
     `2 = Reemplazar el proyecto actual «${PROJECT.name}»\n\n`+
     `Escribí 1 o 2 (o cancelá):`);
@@ -962,144 +918,36 @@ function openSavedFlow(file,wb,saved){
     const p=newProject(clean(base)||"Importado");
     p.blocks=data.blocks; p.auxDict=data.auxDict; p.colOrder=data.colOrder;
     PROJECTS.push(p); PROJECT=p;
+    ensureDictCoverage();   // sana listados auto sin regla (p.ej. guardados antes de este cambio)
     DB.put("projects",p); DB.put("meta",{k:"last",id:p.id});
-    recomputeColumns(); renderAll(); closeImport();
+    recomputeColumns(); renderAll(); closeAdd();
   } else if(opt==="2"){
     if(!confirm(`Esto reemplaza los listados y el diccionario de «${PROJECT.name}». ¿Continuar?`)) return;
     PROJECT.blocks=data.blocks; PROJECT.auxDict=data.auxDict; PROJECT.colOrder=data.colOrder;
-    recomputeColumns(); persist(); renderAll(); closeImport();
+    ensureDictCoverage();   // sana listados auto sin regla
+    recomputeColumns(); persist(); renderAll(); closeAdd();
   }
   // cancelar: dejo el modal abierto para elegir otro archivo
 }
-
-function loadImpFile(file){
-  readWB(file,wb=>{
-    const saved=detectSaved(wb);
-    if(saved){ openSavedFlow(file,wb,saved); return; }
-    IMP.wb=wb; IMP.file=file;
-    $("#impDrop").style.display="none"; $("#impConfig").hidden=false; $("#impFileName").textContent=file.name;
-    const sel=$("#impSheet"); sel.innerHTML="";
-    wb.SheetNames.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o); });
-    // elegir hoja por defecto: "listados" si existe
-    const def=wb.SheetNames.find(n=>norm(n)==="listados")||wb.SheetNames[0]; sel.value=def;
-    onSheetChange();
-  });
-}
-$("#impSheet").addEventListener("change",onSheetChange);
-function onSheetChange(){
-  const name=$("#impSheet").value;
-  const aoa=XLSX.utils.sheet_to_json(IMP.wb.Sheets[name],{header:1,raw:true,defval:null});
-  IMP.aoa=aoa; IMP.headers=(aoa[0]||[]).map((c,i)=> clean(c) || ("Columna "+colLetter(i)) );
-  const nb=blockStartCols(aoa).length;
-  $("#segAuto").style.display = nb>0 ? "" : "none";
-  if(nb>0){ setMode("auto"); } else { setMode("map"); }
-  // poblar selects de mapeo
-  const opts=(withNone)=> (withNone?`<option value="">— ninguno —</option>`:"") + IMP.headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join("");
-  $("#mapCode").innerHTML=opts(false);
-  $("#mapAcc").innerHTML=opts(true);
-  $("#mapName").innerHTML=opts(true);
-  $("#mapDet").innerHTML=opts(true);
-  // adivinar columnas por nombre
-  const find=names=>{ for(const n of names){ const i=IMP.headers.findIndex(h=>norm(h)===n); if(i>=0)return i; } return -1; };
-  let ic=IMP.headers.findIndex(isB2BHeader); if(ic<0) ic=find(["codigo","cod"]); if(ic>=0)$("#mapCode").value=ic;
-  const ia=find(["accion"]); $("#mapAcc").value= ia>=0?ia:"";
-  const inm=find(["listado","columna","nombre"]); $("#mapName").value= inm>=0?inm:"";
-  const idd=find(["detalle","valor"]); $("#mapDet").value= idd>=0?idd:"";
-  updatePreview();
-}
-$("#impSeg").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
-function setMode(m){ IMP.mode=m; $("#impSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.mode===m)); $("#impAuto").hidden=m!=="auto"; $("#impMap").hidden=m!=="map"; updatePreview(); }
-["#mapCode","#mapAcc","#mapName","#mapDet","#defName","#defDet"].forEach(s=>$(s).addEventListener("input",updatePreview));
-
-function buildImpBlocks(){
-  const name=$("#impSheet").value, aoa=IMP.aoa, src={file:IMP.file.name, sheet:name, at:Date.now()};
-  const dict=dictMap();
-  let blocks=[];
-  if(IMP.mode==="auto"){
-    const starts=blockStartCols(aoa);
-    starts.forEach((s,bi)=>{
-      const raw=[]; let accion="",colRaw="",detRaw="",got=false;
-      for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[s]; if(b2b==null||clean(b2b)==="")continue;
-        if(!got){ accion=clean(row[s+1]); colRaw=clean(row[s+3]); detRaw=clean(row[s+4]); got=true; }
-        const {pdv,dist}=clientOf(b2b, row[s+2]);
-        raw.push({pdv,b2b:clean(b2b),dist}); }
-      if(!raw.length)return;
-      const d=dict.get(norm(accion));
-      const col=(d&&d.col)?d.col:colRaw, detalle=(d&&d.detalle)?d.detalle:detRaw;
-      blocks.push({id:uid(),accion:accion||("Listado "+(bi+1)),col,detalle,manual:false,rawRecords:raw,records:[],source:src});
-    });
-  } else {
-    // modo mapeo
-    const ci=+$("#mapCode").value;
-    const ai=$("#mapAcc").value==="" ? -1 : +$("#mapAcc").value;
-    const ni=$("#mapName").value==="" ? -1 : +$("#mapName").value;
-    const di=$("#mapDet").value==="" ? -1 : +$("#mapDet").value;
-    const defName=clean($("#defName").value), defDet=clean($("#defDet").value);
-    if(isNaN(ci)) return [];
-    const groups=new Map(); // key -> {accion, nameVal, detVal, raw}
-    for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const b2b=row[ci]; if(b2b==null||clean(b2b)==="")continue;
-      let key, accion;
-      if(ai>=0){ accion=clean(row[ai]); key="A:"+accion; }
-      else if(ni>=0){ accion=clean(row[ni]); key="N:"+accion; }
-      else { accion=defName||"Listado"; key="U"; }
-      let g=groups.get(key); if(!g){ g={accion, nameVal:"", detVal:"", raw:[]}; groups.set(key,g); }
-      if(ni>=0 && !g.nameVal) g.nameVal=clean(row[ni]);
-      if(di>=0 && !g.detVal) g.detVal=clean(row[di]);
-      const {pdv,dist}=clientOf(b2b, null);
-      g.raw.push({pdv,b2b:clean(b2b),dist});
-    }
-    for(const g of groups.values()){ if(!g.raw.length)continue;
-      const d=dict.get(norm(g.accion));
-      const col = g.nameVal || (d&&d.col?d.col:"") || defName || "";
-      const detalle = g.detVal || (d&&d.detalle?d.detalle:"") || defDet || "";
-      blocks.push({id:uid(),accion:g.accion,col,detalle,manual:false,rawRecords:g.raw,records:[],source:src});
-    }
-  }
-  finalizeBlocks(blocks,null);  // records de preview (todos los distribuidores)
-  return blocks;
-}
-function updatePreview(){
-  try{
-    const blocks=buildImpBlocks();
-    const cli=new Set(); blocks.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
-    const cols=new Set(); blocks.forEach(b=>{ if(b.col)cols.add(b.col); });
-    const uncl=blocks.filter(b=>!b.col).length;
-    const valid=blocks.length>0;
-    $("#impAdd").disabled=!valid;
-    $("#impPrev").innerHTML = valid
-      ? `Se van a agregar <b>${blocks.length}</b> listado(s) · <b>${fmt(cli.size)}</b> clientes · <b>${cols.size}</b> columna(s)${uncl?` · <b style="color:var(--warn)">${uncl} sin clasificar</b>`:""}`
-      : `Elegí al menos la columna de <b>Código de cliente</b>.`;
-  }catch(err){ $("#impPrev").textContent="Revisá el mapeo: "+err.message; $("#impAdd").disabled=true; }
-}
-$("#impAdd").addEventListener("click",()=>{
-  // si el archivo trae hoja Auxiliar, fusionar el diccionario primero (clasifica mejor)
-  const d=extractDictFromWB(IMP.wb,false); if(d) mergeDict(d);
-  const blocks=buildImpBlocks();
-  if(!blocks.length)return;
-  const proceed=(sel)=>{
-    finalizeBlocks(blocks, sel);
-    const real=blocks.filter(b=>b.records.length).map(b=>({id:b.id,accion:b.accion,col:b.col,detalle:b.detalle,manual:false,records:b.records,source:b.source}));
-    if(!real.length){ alert("No quedaron clientes con los distribuidores elegidos."); return; }
-    integrateBlocks(real, ()=>{
-      recomputeColumns(); persist(); renderAll(); closeImport();
-      document.querySelector('.tab[data-tab="listados"]').click();
-    });
-  };
-  const summary=distSummary(blocks);
-  if(summary.size) openDistChooser(summary, proceed); else proceed(null);
-});
 
 /* ============================================================
    AGREGAR LISTADOS (multi-archivo, bloques, con revisión)
    ============================================================ */
 let ADD={ blocks:[] , dict:[] };
 const addModal=$("#addModal");
-$("#addListBtn").addEventListener("click",openAdd);
+$("#importBtn").addEventListener("click",openAdd);   // botón único "Importar / Agregar"
 $("#addClose").addEventListener("click",closeAdd);
 $("#addCancel").addEventListener("click",closeAdd);
 addModal.addEventListener("click",e=>{ if(e.target===addModal) closeAdd(); });
-function openAdd(){ ADD={blocks:[],dict:[],selectedDist:null}; $("#addReview").hidden=true; $("#addDrop").style.display=""; $("#addMore").hidden=true; $("#addDist").hidden=true; $("#addCommit").disabled=true; $("#addFile").value=""; addModal.classList.add("on"); }
-function closeAdd(){ addModal.classList.remove("on"); }
+function openAdd(){ ADD={blocks:[],dict:[],selectedDist:null,pending:[],step:"review"}; $("#addReview").hidden=true; $("#addMap").hidden=true; $("#addDrop").style.display=""; $("#addMore").hidden=true; $("#addDist").hidden=true; $("#addCommit").hidden=false; $("#addCommit").disabled=true; $("#addFile").value=""; addModal.classList.add("on"); }
+function closeAdd(){ clearRowErrors(); addModal.classList.remove("on"); }
+/* botón único "Continuar": en el paso de columna avanza; en la revisión confirma */
+function mapContinue(){
+  for(const pf of ADD.pending){ const blk=buildListadoFromColumn(pf); if(blk.rawRecords.length) ADD.blocks.push(blk); }
+  ADD.pending=[];
+  if(!ADD.blocks.length){ alert("No encontré códigos de cliente en la columna elegida."); openAdd(); return; }
+  finalizeAndReview();
+}
 
 const addDrop=$("#addDrop"), addFileInp=$("#addFile");
 addDrop.addEventListener("dragover",e=>{e.preventDefault();addDrop.classList.add("over");});
@@ -1107,7 +955,7 @@ addDrop.addEventListener("dragleave",()=>addDrop.classList.remove("over"));
 addDrop.addEventListener("drop",e=>{e.preventDefault();addDrop.classList.remove("over"); if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);});
 addFileInp.addEventListener("change",e=>{ if(e.target.files.length) addFiles(e.target.files); e.target.value=""; });
 $("#addMore").addEventListener("click",()=>$("#addFile").click());
-$("#addCommit").addEventListener("click",commitAdd);
+$("#addCommit").addEventListener("click",()=>{ if(ADD.step==="map") mapContinue(); else commitAdd(); });
 $("#addDist").addEventListener("click",()=>{
   const summary=distSummary(ADD.blocks); if(!summary.size){ alert("No hay códigos B2B con distribuidor en estos listados."); return; }
   openDistChooser(summary, sel=>{ ADD.selectedDist=sel; finalizeBlocks(ADD.blocks, sel); classifyAdd(); renderAddReview(); }, ADD.selectedDist);
@@ -1152,23 +1000,66 @@ function parseBlocks(aoa, src){
 
 async function addFiles(fileList){
   const files=[...fileList]; if(!files.length) return;
-  let foundBlocks=0;
+  const pending=[];
   for(const file of files){
     const wb=await readWBp(file); if(!wb)continue;
+    // 1) ¿Es una Matriz guardada por la herramienta? -> flujo aparte (abrir/reemplazar proyecto)
+    const saved=detectSaved(wb);
+    if(saved){ openSavedFlow(file,wb,saved); return; }   // ignora el resto del drop: reabrir es una operación sola
     const sheetName=wb.SheetNames.find(n=>norm(n)==="listados")||wb.SheetNames[0];
     const src={file:file.name, sheet:sheetName, at:Date.now()};
     const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,raw:true,defval:null});
+    // 2) formato conocido (bloques, o lista con encabezado B2B/Cliente) -> a la revisión
     const blk=parseBlocks(aoa,src);
-    blk.forEach(b=>ADD.blocks.push(b)); foundBlocks+=blk.length;
+    if(blk.length){ blk.forEach(b=>ADD.blocks.push(b)); }
+    else {
+      // 3) formato desconocido: guardamos para preguntar la columna de códigos (el resto se ignora, entra como 1 listado)
+      const headers=(aoa[0]||[]).map((c,i)=> clean(c) || ("Columna "+colLetter(i)) );
+      let guess=headers.findIndex((_,i)=>isB2BHeader((aoa[0]||[])[i]));
+      if(guess<0) guess=headers.findIndex(h=>/cod|cliente|b2b|pdv/i.test(h));
+      if(guess<0) guess=0;
+      pending.push({file, sheetName, aoa, src, headers, codeIdx:guess});
+    }
     const d=extractDictFromWB(wb,false); if(d) d.forEach(e=>ADD.dict.push(e));
   }
-  if(!ADD.blocks.length){ alert("No encontré listados en bloques (columnas «B2B» o «Cliente») en los archivos elegidos."); return; }
+  ADD.pending=pending;
+  if(pending.length){ renderAddMap(); return; }   // primero elegir la(s) columna(s) de códigos
+  if(!ADD.blocks.length){ alert("No pude leer clientes en los archivos elegidos."); return; }
+  finalizeAndReview();
+}
+/* con ADD.blocks ya armados: resuelve distribuidores (si hay) y muestra la revisión */
+function finalizeAndReview(){
   const summary=distSummary(ADD.blocks);
   if(summary.size){
     openDistChooser(summary, sel=>{ ADD.selectedDist=sel; finalizeBlocks(ADD.blocks, sel); classifyAdd(); renderAddReview(); });
   } else {
     ADD.selectedDist=null; finalizeBlocks(ADD.blocks, null); classifyAdd(); renderAddReview();
   }
+}
+/* arma UN listado desde una sola columna de códigos (formato desconocido) */
+function buildListadoFromColumn(pf){
+  const raw=[];
+  for(let r=1;r<pf.aoa.length;r++){ const row=pf.aoa[r]; if(!row)continue; const code=row[pf.codeIdx]; if(code==null||clean(code)==="")continue;
+    const {pdv,dist}=clientOf(code, null);
+    raw.push({pdv,b2b:clean(code),dist}); }
+  return { id:uid(), accion:"", colRaw:"", detRaw:"", col:"", detalle:"", manual:false, fromDict:false, rawRecords:raw, records:[], source:pf.src };
+}
+/* paso "elegir columna de códigos" para archivos de formato desconocido */
+function renderAddMap(){
+  ADD.step="map";
+  $("#addDrop").style.display="none";
+  $("#addReview").hidden=true;
+  $("#addMap").hidden=false;
+  $("#addMore").hidden=true; $("#addDist").hidden=true;
+  $("#addCommit").hidden=false; $("#addCommit").disabled=false; $("#addCommit").textContent="Continuar";
+  const c=$("#addMapList"); c.innerHTML="";
+  ADD.pending.forEach((pf,i)=>{
+    const opts=pf.headers.map((h,idx)=>`<option value="${idx}"${idx===pf.codeIdx?" selected":""}>${esc(h)}</option>`).join("");
+    const div=document.createElement("div"); div.className="fld";
+    div.innerHTML=`<label>${esc(pf.file.name)} · ¿qué columna tiene los códigos de cliente?</label><select data-i="${i}">${opts}</select>`;
+    div.querySelector("select").addEventListener("change",e=>{ ADD.pending[i].codeIdx=+e.target.value; });
+    c.appendChild(div);
+  });
 }
 
 /* diccionario combinado: el del proyecto + el que vino en los archivos importados */
@@ -1188,69 +1079,116 @@ function classifyAdd(){
       p.detalle = (d&&d.detalle)?d.detalle : p.detRaw;
       p.fromDict = !!(d&&(d.col||d.detalle));
     }
-    // por defecto: guardar al diccionario las acciones nuevas (que tengan nombre)
-    if(!p.dictTouched) p.toDict = !!k && !dm.has(k);
   }
 }
 
+const isReplacing = p => !!p.replaceId && PROJECT.blocks.some(b=>b.id===p.replaceId);
 function renderAddReview(){
+  ADD.step="review";
+  clearRowErrors();
   $("#addDrop").style.display="none";
   $("#addReview").hidden=false;
+  $("#addMap").hidden=true;
   $("#addMore").hidden=false;
+  $("#addCommit").hidden=false;
   $("#addDist").hidden = distSummary(ADD.blocks).size===0;
   const tb=$("#addBody"); tb.innerHTML="";
   ADD.blocks.forEach((p,i)=>{
+    const replacing=isReplacing(p);
+    const noC=!!p.noClass && !replacing;
+    const classified=clean(p.accion)&&clean(p.col)&&clean(p.detalle);
+    const valid=noC||replacing||classified;
     const tr=document.createElement("tr");
-    const miss = !clean(p.accion) || !p.col || !p.detalle;
-    tr.className="lrow"+(miss?" unclassified":"");
+    tr.className="lrow"+(noC?" noclass":"")+(valid?"":" unclassified");
+    const accDis=(noC||replacing)?" disabled":"", fldDis=noC?" disabled":"";
     const repOpts=`<option value="">— (nuevo) —</option>`+PROJECT.blocks.map(b=>`<option value="${b.id}"${p.replaceId===b.id?" selected":""}>${esc(b.accion||"(sin acción)")} · ${fmt(b.records.length)}cli</option>`).join("");
     tr.innerHTML=`
-      <td><input class="accinput" value="${esc(p.accion)}" placeholder="¿qué acción?"${p.replaceId?" disabled":""}></td>
-      <td><input class="colinput" value="${esc(p.col)}" placeholder="¿qué columna?"></td>
-      <td><input class="detinput" value="${esc(p.detalle)}" placeholder="¿qué detalle?"></td>
-      <td><select class="repsel">${repOpts}</select></td>
-      <td style="text-align:center"><input type="checkbox" class="dchk" ${p.toDict?"checked":""} title="Guardar Acción→Columna→Detalle en el diccionario"></td>
+      <td><input class="accinput" value="${esc(p.accion)}" placeholder="¿qué acción?"${accDis}></td>
+      <td><input class="colinput" value="${esc(p.col)}" placeholder="¿qué segmento?"${fldDis}></td>
+      <td><input class="detinput" value="${esc(p.detalle)}" placeholder="¿qué detalle?"${fldDis}></td>
+      <td><select class="repsel"${fldDis}>${repOpts}</select></td>
       <td class="cnum">${fmt(p.records.length)}</td>
       <td class="src" title="${esc(p.source.file)}">${esc(p.source.file)}</td>
+      <td style="text-align:center"><input type="checkbox" class="ncchk" ${p.noClass?"checked":""}${replacing?" disabled":""} title="Agregar el listado sin Segmento/Detalle; lo clasificás después"></td>
       <td class="cact"><button class="xbtn" title="Descartar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
-    const ai=tr.querySelector(".accinput"), ci=tr.querySelector(".colinput"), di=tr.querySelector(".detinput"), dc=tr.querySelector(".dchk"), rs=tr.querySelector(".repsel");
+    const ai=tr.querySelector(".accinput"), ci=tr.querySelector(".colinput"), di=tr.querySelector(".detinput"), rs=tr.querySelector(".repsel"), nc=tr.querySelector(".ncchk");
     ai.addEventListener("change",()=>{ p.accion=clean(ai.value); classifyAdd(); renderAddReview(); });
     ai.addEventListener("keydown",e=>{ if(e.key==="Enter") ai.blur(); });
     ci.addEventListener("change",()=>{ p.col=clean(ci.value); p.manual=true; p.fromDict=false; renderAddReview(); });
     ci.addEventListener("keydown",e=>{ if(e.key==="Enter") ci.blur(); });
     di.addEventListener("change",()=>{ p.detalle=clean(di.value); p.manual=true; renderAddReview(); });
     di.addEventListener("keydown",e=>{ if(e.key==="Enter") di.blur(); });
-    dc.addEventListener("change",()=>{ p.toDict=dc.checked; p.dictTouched=true; });
     rs.addEventListener("change",()=>{ p.replaceId=rs.value;
-      if(rs.value){ const t=PROJECT.blocks.find(b=>b.id===rs.value); if(t){ p.accion=t.accion; if(!p.col)p.col=t.col; if(!p.detalle)p.detalle=t.detalle; } p.toDict=false; p.dictTouched=true; }
+      if(rs.value){ const t=PROJECT.blocks.find(b=>b.id===rs.value); if(t){ p.accion=t.accion; if(!p.col)p.col=t.col; if(!p.detalle)p.detalle=t.detalle; } p.noClass=false; }
       renderAddReview();
     });
+    nc.addEventListener("change",()=>{ p.noClass=nc.checked; if(nc.checked)p.replaceId=""; renderAddReview(); });
     tr.querySelector(".xbtn").addEventListener("click",()=>{ ADD.blocks.splice(i,1); renderAddReview(); });
     tb.appendChild(tr);
   });
   const cli=new Set(); ADD.blocks.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
-  const missAcc=ADD.blocks.filter(b=>!clean(b.accion)).length;
-  const missCol=ADD.blocks.filter(b=>!b.col).length;
-  const missDet=ADD.blocks.filter(b=>!b.detalle).length;
-  const toDict=ADD.blocks.filter(b=>b.toDict && clean(b.accion) && b.col).length;
-  const repl=ADD.blocks.filter(b=>b.replaceId).length;
-  const warn=[]; if(missAcc)warn.push(`${missAcc} sin acción`); if(missCol)warn.push(`${missCol} sin columna`); if(missDet)warn.push(`${missDet} sin detalle`);
+  const commit=ADD.blocks.filter(p=>p.records.length);
+  const repl=commit.filter(isReplacing).length;
+  const noCn=commit.filter(p=>p.noClass&&!isReplacing(p)).length;
+  const pend=commit.filter(p=>!p.noClass&&!isReplacing(p)&&!(clean(p.accion)&&clean(p.col)&&clean(p.detalle))).length;
+  const parts=[];
+  if(pend)parts.push(`<b style="color:var(--warn)">${pend} por completar</b>`);
+  if(repl)parts.push(`<b>${repl}</b> reemplaza(n)`);
+  if(noCn)parts.push(`<b>${noCn}</b> sin clasificar`);
   $("#addNote").innerHTML = ADD.blocks.length
-    ? `<b>${ADD.blocks.length}</b> listado(s) · <b>${fmt(cli.size)}</b> clientes${warn.length?` · <b style="color:var(--warn)">${warn.join(" · ")}</b> (completá abajo)`:" · completos ✓"}${repl?` · <b>${repl}</b> reemplaza(n) existentes`:""} · ${toDict} al diccionario`
+    ? `<b>${ADD.blocks.length}</b> listado(s) · <b>${fmt(cli.size)}</b> clientes${parts.length?" · "+parts.join(" · "):" · completos ✓"}`
     : "No quedan listados para agregar.";
+  const allNoClass = commit.length>0 && commit.every(p=>p.noClass&&!isReplacing(p));
+  $("#addCommit").textContent = allNoClass ? "Continuar sin clasificar" : "Continuar";
   $("#addCommit").disabled = !ADD.blocks.length;
 }
-
+/* overlays flotantes "Falta completar" al lado de cada fila con problema (fuera del recuadro, sin layout shift) */
+let ROWERR_ELS=[], ROWERR_TIMER=null;
+function clearRowErrors(){ ROWERR_ELS.forEach(el=>el.remove()); ROWERR_ELS=[]; clearTimeout(ROWERR_TIMER); }
+function showRowErrors(indices){
+  clearRowErrors();
+  const box=$("#addReview")?$("#addReview").querySelector(".ltable"):null; if(!box) return;
+  const boxRect=box.getBoundingClientRect(), tb=$("#addBody");
+  for(const i of indices){
+    const row=tb.children[i]; if(!row) continue;
+    const r=row.getBoundingClientRect(), cy=r.top+r.height/2;
+    if(cy<boxRect.top-2 || cy>boxRect.bottom+2) continue;   // fila fuera del área visible del recuadro
+    const el=document.createElement("div"); el.className="erroverlay"; el.textContent="Falta completar";
+    el.style.left=(boxRect.right+8)+"px"; el.style.top=cy+"px";
+    document.body.appendChild(el); ROWERR_ELS.push(el);
+    requestAnimationFrame(()=>el.classList.add("show"));
+  }
+  if(!ROWERR_ELS.length) return;
+  box.addEventListener("scroll",clearRowErrors,{once:true});   // si scrollea, los saco (se desalinean)
+  ROWERR_TIMER=setTimeout(clearRowErrors,3500);
+}
 function commitAdd(){
   if(!ADD.blocks.length) return;
+  // validación: cada fila debe estar clasificada (Acción+Columna+Detalle), reemplazar un listado, o ir "sin clasificar"
+  const bad=[];
+  ADD.blocks.forEach((p,i)=>{ if(!p.records.length) return;
+    if(isReplacing(p) || p.noClass) return;
+    if(clean(p.accion)&&clean(p.col)&&clean(p.detalle)) return;
+    bad.push(i);
+  });
+  if(bad.length){
+    const row=$("#addBody").children[bad[0]];
+    if(row){ row.scrollIntoView({block:"nearest"}); row.classList.add("flash"); setTimeout(()=>row.classList.remove("flash"),1200); }
+    requestAnimationFrame(()=>showRowErrors(bad));   // overlay flotante, se posiciona tras el scroll
+    return;
+  }
+  clearRowErrors();
   const dictToMerge=ADD.dict.slice();
   const replacements=[], additions=[];
   ADD.blocks.forEach((p,i)=>{
     if(!p.records.length) return; // sin clientes (p.ej. distribuidor no seleccionado)
-    const blk={ id:p.id, accion:clean(p.accion)||("Listado "+(i+1)), col:clean(p.col), detalle:clean(p.detalle),
-      manual:p.manual, records:p.records, source:p.source };
-    if(p.toDict && clean(p.accion) && clean(p.col)) dictToMerge.push({accion:clean(p.accion),col:clean(p.col),detalle:clean(p.detalle)});
-    if(p.replaceId && PROJECT.blocks.some(b=>b.id===p.replaceId)) replacements.push({targetId:p.replaceId, block:blk});
+    const replacing=isReplacing(p), noC=!!p.noClass&&!replacing;
+    const accion=clean(p.accion)||("Listado "+(i+1));
+    const col=noC?"":clean(p.col), detalle=noC?"":clean(p.detalle);
+    const blk={ id:p.id, accion, col, detalle, manual:false, records:p.records, source:p.source };
+    // regla #1: si NO reemplaza a uno activo, la Acción→Columna→Detalle va al diccionario sí o sí
+    if(!replacing) dictToMerge.push({accion, col, detalle});
+    if(replacing) replacements.push({targetId:p.replaceId, block:blk});
     else additions.push(blk);
   });
   const applyReplacements=()=>{ replacements.forEach(r=>{ const idx=PROJECT.blocks.findIndex(b=>b.id===r.targetId);
@@ -1258,6 +1196,7 @@ function commitAdd(){
   const finish=()=>{
     applyReplacements();
     if(dictToMerge.length) mergeDict(dictToMerge);  // dicc de los archivos + reglas marcadas en la revisión
+    ensureDictCoverage();   // ningún listado auto queda sin su entrada en el diccionario
     recomputeColumns(); persist(); renderAll(); closeAdd();
     document.querySelector('.tab[data-tab="listados"]').click();
   };
@@ -1323,7 +1262,7 @@ function renderConflicts(){
       const src=o.block.source?` · ${esc(o.block.source.file)}`:"";
       return `<button class="conf-opt${g.keep===j?' on':''}" data-i="${i}" data-j="${j}">
         <div class="conf-tag">${esc(o.tag)}</div><div class="conf-meta">${fmt(o.block.records.length)} clientes</div>
-        <div class="conf-sub">${esc(o.block.col||'(sin columna)')} · ${esc(o.block.detalle||'—')}${src}</div></button>`;
+        <div class="conf-sub">${esc(o.block.col||'(sin segmento)')} · ${esc(o.block.detalle||'—')}${src}</div></button>`;
     }).join("");
     const div=document.createElement("div"); div.className="conf";
     div.innerHTML=`<div class="conf-h">${esc(g.accion)} ${diff}</div>
@@ -1395,7 +1334,7 @@ $("#exportBtn").addEventListener("click",()=>{
   // Hoja 1 · Matriz (para ver/pegar)
   if(rows.length){ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header,...rows]), "Matriz"); }
   // Hoja 2 · Listados (formato que la herramienta vuelve a leer)
-  const laoa=[["BloqueID","Acción","Columna","Detalle","Manual","B2B","PDV"]];
+  const laoa=[["BloqueID","Acción","Segmento","Detalle","Manual","B2B","PDV"]];
   for(const b of PROJECT.blocks) for(const r of b.records) laoa.push([b.id,b.accion,b.col,b.detalle,b.manual?"SI":"",r.b2b,r.pdv]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(laoa), "Listados");
   // Hoja 3 · Auxiliar (diccionario)
@@ -1428,7 +1367,7 @@ function fallbackCopy(text, ok){
 function flashBtn(sel, html){ const b=$(sel); if(!b)return; const o=b.innerHTML; b.innerHTML=html; b.disabled=true;
   setTimeout(()=>{ b.innerHTML=o; b.disabled=false; },1500); }
 function downloadBlock(b){
-  const aoa=[["PDV","B2B","Columna","Detalle"],...b.records.map(r=>[r.pdv,r.b2b,b.col,b.detalle])];
+  const aoa=[["PDV","B2B","Segmento","Detalle"],...b.records.map(r=>[r.pdv,r.b2b,b.col,b.detalle])];
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,sheetSafe(b.accion));
   XLSX.writeFile(wb, fileSafe(PROJECT.name)+"_"+fileSafe(b.accion)+".xlsx");
