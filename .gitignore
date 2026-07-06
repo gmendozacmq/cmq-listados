@@ -18,3 +18,6 @@ $RECYCLE.BIN/
 
 # Logs
 *.log
+
+# Datos reales de clientes (no publicar)
+corekt1.xlsx
