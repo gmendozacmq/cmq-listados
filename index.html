@@ -176,6 +176,10 @@
   table.lst tr.grp td{cursor:pointer;user-select:none}
   table.lst tr.grp:hover td{background:#eef2f5}
   table.lst tr.grp .chev{display:inline-block;width:11px;color:var(--muted);font-size:10px;margin-right:3px;vertical-align:middle}
+  table.lst tr.grp .ggrip{display:inline-block;color:var(--faint);cursor:grab;vertical-align:middle;margin-right:4px}
+  table.lst tr.grp .ggrip svg{width:13px;height:13px;display:block}
+  table.lst tr.grp.drag td{opacity:.45}
+  table.lst tr.grp.over td{box-shadow:inset 0 2px 0 var(--accent)}
   .badge{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:5px;font-weight:700;white-space:nowrap}
   .badge.dic{background:var(--accent-soft);color:var(--accent)}
   .badge.arch{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
@@ -652,8 +656,17 @@ function renderGroups(){
     const key=isUn?UNCL:name, collapsed=collapsedCols.has(key);
     const cli=new Set(); arr.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
     const gtr=document.createElement("tr"); gtr.className="grp"+(collapsed?" collapsed":"");
-    gtr.innerHTML=`<td colspan="7"><span class="chev">${collapsed?"▸":"▾"}</span><span class="dot" style="background:${isUn?'#f59e0b':'var(--accent2)'}"></span><span class="gname">${isUn?'Sin clasificar':esc(name)}</span><span class="gmeta">${arr.length} listado${arr.length>1?'s':''} · ${fmt(cli.size)} clientes${collapsed?" · plegado":""}</span></td>`;
+    const ggrip = isUn ? "" : `<span class="ggrip" title="Arrastrá para reordenar el segmento"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>`;
+    gtr.innerHTML=`<td colspan="7">${ggrip}<span class="chev">${collapsed?"▸":"▾"}</span><span class="dot" style="background:${isUn?'#f59e0b':'var(--accent2)'}"></span><span class="gname">${isUn?'Sin clasificar':esc(name)}</span><span class="gmeta">${arr.length} listado${arr.length>1?'s':''} · ${fmt(cli.size)} clientes${collapsed?" · plegado":""}</span></td>`;
     gtr.addEventListener("click",()=>{ if(collapsedCols.has(key))collapsedCols.delete(key); else collapsedCols.add(key); renderGroups(); });
+    if(!isUn){
+      gtr.draggable=true;
+      gtr.addEventListener("dragstart",e=>{ dragGroupName=name; dragBlockId=null; gtr.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
+      gtr.addEventListener("dragend",()=>{ gtr.classList.remove("drag"); document.querySelectorAll("tr.grp.over").forEach(c=>c.classList.remove("over")); });
+      gtr.addEventListener("dragover",e=>{ if(dragGroupName==null)return; e.preventDefault(); gtr.classList.add("over"); });
+      gtr.addEventListener("dragleave",()=>gtr.classList.remove("over"));
+      gtr.addEventListener("drop",e=>{ if(dragGroupName==null)return; e.preventDefault(); gtr.classList.remove("over"); reorderSegments(dragGroupName,name); dragGroupName=null; });
+    }
     tb.appendChild(gtr);
     if(!collapsed) vis.forEach(b=>tb.appendChild(rowEl(b,isUn)));
   };
@@ -687,7 +700,15 @@ function renderGroups(){
   wrap.scrollTop=_sc;  // preservar posición de scroll al re-dibujar (p.ej. al plegar grupos)
 }
 
-let dragBlockId=null;
+let dragBlockId=null, dragGroupName=null;
+/* reordenar segmentos (grupos) arrastrando su encabezado → cambia PROJECT.colOrder */
+function reorderSegments(fromName,toName){
+  if(fromName==null||fromName===toName)return;
+  const a=PROJECT.colOrder, fi=a.indexOf(fromName), ti=a.indexOf(toName);
+  if(fi<0||ti<0)return;
+  const [m]=a.splice(fi,1); a.splice(ti,0,m);
+  persist(); renderGroups(); renderMatrix();
+}
 function rowEl(b,isUn){
   const tr=document.createElement("tr");
   tr.className="lrow"+(isUn?" unclassified":"")+(b.manual?" manual":"");
@@ -714,11 +735,11 @@ function rowEl(b,isUn){
   });
   tr.querySelector("[data-dl]").addEventListener("click",ev=>{ ev.stopPropagation(); downloadBlock(b); });
   tr.querySelector(".xbtn").addEventListener("click",ev=>{ ev.stopPropagation(); if(!confirm(`¿Quitar el listado «${b.accion}» (${fmt(b.records.length)} clientes)?`))return; PROJECT.blocks=PROJECT.blocks.filter(x=>x.id!==b.id); recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix(); });
-  tr.addEventListener("dragstart",e=>{ dragBlockId=b.id; tr.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
+  tr.addEventListener("dragstart",e=>{ dragBlockId=b.id; dragGroupName=null; tr.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
   tr.addEventListener("dragend",()=>{ tr.classList.remove("drag"); document.querySelectorAll("tr.lrow.over").forEach(c=>c.classList.remove("over")); });
-  tr.addEventListener("dragover",e=>{ e.preventDefault(); tr.classList.add("over"); });
+  tr.addEventListener("dragover",e=>{ if(dragBlockId==null)return; e.preventDefault(); tr.classList.add("over"); });
   tr.addEventListener("dragleave",()=>tr.classList.remove("over"));
-  tr.addEventListener("drop",e=>{ e.preventDefault(); tr.classList.remove("over"); reorderBlocks(dragBlockId,b.id); });
+  tr.addEventListener("drop",e=>{ if(dragBlockId==null)return; e.preventDefault(); tr.classList.remove("over"); reorderBlocks(dragBlockId,b.id); });
   return tr;
 }
 function reorderBlocks(fromId,toId){
