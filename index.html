@@ -1104,6 +1104,45 @@ function classifyAdd(){
 }
 
 const isReplacing = p => !!p.replaceId && PROJECT.blocks.some(b=>b.id===p.replaceId);
+/* recomputa clase de estado de una fila (sin reconstruir el DOM) */
+function refreshAddRow(tr,p){
+  const replacing=isReplacing(p);
+  const noC=!!p.noClass && !replacing;
+  const classified=clean(p.accion)&&clean(p.col)&&clean(p.detalle);
+  const valid=noC||replacing||classified;
+  tr.className="lrow"+(noC?" noclass":"")+(valid?"":" unclassified");
+}
+/* actualiza el resumen inferior + estado del botón Continuar */
+function refreshAddNote(){
+  const cli=new Set(); ADD.blocks.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
+  const commit=ADD.blocks.filter(p=>p.records.length);
+  const repl=commit.filter(isReplacing).length;
+  const noCn=commit.filter(p=>p.noClass&&!isReplacing(p)).length;
+  const pend=commit.filter(p=>!p.noClass&&!isReplacing(p)&&!(clean(p.accion)&&clean(p.col)&&clean(p.detalle))).length;
+  const parts=[];
+  if(pend)parts.push(`<b style="color:var(--warn)">${pend} por completar</b>`);
+  if(repl)parts.push(`<b>${repl}</b> reemplaza(n)`);
+  if(noCn)parts.push(`<b>${noCn}</b> sin clasificar`);
+  $("#addNote").innerHTML = ADD.blocks.length
+    ? `<b>${ADD.blocks.length}</b> listado(s) · <b>${fmt(cli.size)}</b> clientes${parts.length?" · "+parts.join(" · "):" · completos ✓"}`
+    : "No quedan listados para agregar.";
+  const allNoClass = commit.length>0 && commit.every(p=>p.noClass&&!isReplacing(p));
+  $("#addCommit").textContent = allNoClass ? "Continuar sin clasificar" : "Continuar";
+  $("#addCommit").disabled = !ADD.blocks.length;
+}
+/* refresco liviano tras editar un input de texto: NO reconstruye la tabla (preserva el foco/Tab) */
+function refreshAddLight(){
+  clearRowErrors();
+  const rows=$("#addBody").children;
+  ADD.blocks.forEach((p,i)=>{
+    const tr=rows[i]; if(!tr) return;
+    const ci=tr.querySelector(".colinput"), di=tr.querySelector(".detinput");
+    if(ci && document.activeElement!==ci) ci.value=p.col||"";   // reflejar clasificación del diccionario
+    if(di && document.activeElement!==di) di.value=p.detalle||"";
+    refreshAddRow(tr,p);
+  });
+  refreshAddNote();
+}
 function renderAddReview(){
   ADD.step="review";
   clearRowErrors();
@@ -1133,11 +1172,11 @@ function renderAddReview(){
       <td style="text-align:center"><input type="checkbox" class="ncchk" ${p.noClass?"checked":""}${replacing?" disabled":""} title="Agregar el listado sin Segmento/Detalle; lo clasificás después"></td>
       <td class="cact"><button class="xbtn" title="Descartar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
     const ai=tr.querySelector(".accinput"), ci=tr.querySelector(".colinput"), di=tr.querySelector(".detinput"), rs=tr.querySelector(".repsel"), nc=tr.querySelector(".ncchk");
-    ai.addEventListener("change",()=>{ p.accion=clean(ai.value); classifyAdd(); renderAddReview(); });
+    ai.addEventListener("change",()=>{ p.accion=clean(ai.value); classifyAdd(); refreshAddLight(); });
     ai.addEventListener("keydown",e=>{ if(e.key==="Enter") ai.blur(); });
-    ci.addEventListener("change",()=>{ p.col=clean(ci.value); p.manual=true; p.fromDict=false; renderAddReview(); });
+    ci.addEventListener("change",()=>{ p.col=clean(ci.value); p.manual=true; p.fromDict=false; refreshAddLight(); });
     ci.addEventListener("keydown",e=>{ if(e.key==="Enter") ci.blur(); });
-    di.addEventListener("change",()=>{ p.detalle=clean(di.value); p.manual=true; renderAddReview(); });
+    di.addEventListener("change",()=>{ p.detalle=clean(di.value); p.manual=true; refreshAddLight(); });
     di.addEventListener("keydown",e=>{ if(e.key==="Enter") di.blur(); });
     rs.addEventListener("change",()=>{ p.replaceId=rs.value;
       if(rs.value){ const t=PROJECT.blocks.find(b=>b.id===rs.value); if(t){ p.accion=t.accion; if(!p.col)p.col=t.col; if(!p.detalle)p.detalle=t.detalle; } p.noClass=false; }
@@ -1147,21 +1186,7 @@ function renderAddReview(){
     tr.querySelector(".xbtn").addEventListener("click",()=>{ ADD.blocks.splice(i,1); renderAddReview(); });
     tb.appendChild(tr);
   });
-  const cli=new Set(); ADD.blocks.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
-  const commit=ADD.blocks.filter(p=>p.records.length);
-  const repl=commit.filter(isReplacing).length;
-  const noCn=commit.filter(p=>p.noClass&&!isReplacing(p)).length;
-  const pend=commit.filter(p=>!p.noClass&&!isReplacing(p)&&!(clean(p.accion)&&clean(p.col)&&clean(p.detalle))).length;
-  const parts=[];
-  if(pend)parts.push(`<b style="color:var(--warn)">${pend} por completar</b>`);
-  if(repl)parts.push(`<b>${repl}</b> reemplaza(n)`);
-  if(noCn)parts.push(`<b>${noCn}</b> sin clasificar`);
-  $("#addNote").innerHTML = ADD.blocks.length
-    ? `<b>${ADD.blocks.length}</b> listado(s) · <b>${fmt(cli.size)}</b> clientes${parts.length?" · "+parts.join(" · "):" · completos ✓"}`
-    : "No quedan listados para agregar.";
-  const allNoClass = commit.length>0 && commit.every(p=>p.noClass&&!isReplacing(p));
-  $("#addCommit").textContent = allNoClass ? "Continuar sin clasificar" : "Continuar";
-  $("#addCommit").disabled = !ADD.blocks.length;
+  refreshAddNote();
 }
 /* overlays flotantes "Falta completar" al lado de cada fila con problema (fuera del recuadro, sin layout shift) */
 let ROWERR_ELS=[], ROWERR_TIMER=null;
