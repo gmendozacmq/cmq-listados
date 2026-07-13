@@ -161,9 +161,6 @@
   .erroverlay.show{opacity:1}
   .erroverlay::before{content:"";position:absolute;left:-5px;top:50%;transform:translateY(-50%);
     border:5px solid transparent;border-right-color:var(--neg);border-left:0}
-  .mflag{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.03em;padding:2px 6px;border-radius:5px;
-    font-weight:700;background:var(--warn-soft);color:var(--warn);border:1px solid #fde9b9;vertical-align:middle;margin-left:6px;white-space:nowrap}
-  .mflag:hover{background:var(--warn);color:#fff;border-color:var(--warn)}
   .segfilter{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel)}
   .segfilter button{padding:7px 11px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--panel)}
   .segfilter button+button{border-left:1px solid var(--line)}
@@ -311,13 +308,8 @@
     <section class="view on" id="view-listados">
       <div class="toolbar">
         <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="listSearch" placeholder="Buscar acción o segmento…"></div>
-        <div class="segfilter" id="manualFilter">
-          <button data-f="all" class="on">Todos</button>
-          <button data-f="manual" title="Solo listados editados a mano">✋ Manual</button>
-          <button data-f="auto" title="Solo listados clasificados por el diccionario">Auto</button>
-        </div>
         <button class="btn ghost sm" id="collapseAll" title="Plegar o desplegar todos los grupos">Colapsar todo</button>
-        <span class="hint">Clic en un grupo (Segmento) para plegarlo · ✋ = editado a mano · arrastrá para reordenar</span>
+        <span class="hint">Editás Segmento/Detalle acá o en el Diccionario: es la misma regla (por Acción) · clic en un grupo para plegarlo · arrastrá para reordenar</span>
         <button class="btn" id="addListadoBtn" style="margin-left:auto" title="Agregá uno o más listados (Excel de clientes, bloques, o una Matriz guardada) al proyecto actual"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Agregar listado</button>
       </div>
       <div id="groups"></div>
@@ -337,8 +329,8 @@
       <div class="toolbar">
         <button class="btn sm" id="dictImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar desde Excel</button>
         <button class="btn ghost sm" id="dictAdd">+ fila</button>
-        <button class="btn ghost sm" id="dictApply" title="Re-clasificar todos los listados que coincidan por Acción (no toca los editados a mano)">Re-aplicar a listados</button>
-        <span class="hint">Acción → Segmento → Detalle · los cambios se aplican solos a los listados (salvo los editados a mano)</span>
+        <button class="btn ghost sm" id="dictApply" title="Re-clasificar todos los listados según el diccionario (por Acción)">Re-aplicar a listados</button>
+        <span class="hint">Acción → Segmento → Detalle · los cambios se aplican solos a los listados (una sola regla por Acción)</span>
       </div>
       <div id="dictWarn"></div>
       <div class="dicttable"><table class="dict"><thead><tr><th>Acción</th><th>Segmento</th><th>Detalle</th><th class="delcol"></th></tr></thead><tbody id="dictBody"></tbody></table></div>
@@ -553,11 +545,17 @@ function buildMatrix(){
   return {header,rows,cols};
 }
 
-/* clasificación efectiva al crear/recalcular un bloque (no pisa manual) */
+/* clasificación efectiva al crear/recalcular un bloque desde el Diccionario (única fuente de verdad, por Acción) */
 function classify(block){
-  if(block.manual) return;
   const d=dictMap().get(norm(block.accion));
   if(d){ if(d.col) block.col=d.col; if(d.detalle) block.detalle=d.detalle; }
+}
+/* escribe un campo (col|detalle) del listado ENCIMA de su regla del Diccionario (write-through, por Acción) */
+function dictSet(accion, field, val){
+  const k=norm(accion); if(!k) return null;
+  let e=PROJECT.auxDict.find(d=>norm(d.accion)===k);
+  if(!e){ e={accion:clean(accion),col:"",detalle:""}; PROJECT.auxDict.push(e); }
+  e[field]=val; return e;
 }
 
 /* ============================================================
@@ -631,14 +629,9 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
 /* ============================================================
    Vista LISTADOS
    ============================================================ */
-let listFilter="", manualFilter="all";
+let listFilter="";
 const UNCL="_uncl"; let collapsedCols=new Set();
 $("#listSearch").addEventListener("input",e=>{ listFilter=norm(e.target.value); renderGroups(); });
-$("#manualFilter").querySelectorAll("button").forEach(btn=>btn.addEventListener("click",()=>{
-  manualFilter=btn.dataset.f;
-  $("#manualFilter").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.f===manualFilter));
-  renderGroups();
-}));
 function groupKeysNow(){ const keys=[], cols=new Set(); PROJECT.blocks.forEach(b=>{ if(b.col)cols.add(b.col); }); cols.forEach(c=>keys.push(c)); if(PROJECT.blocks.some(b=>!b.col)) keys.push(UNCL); return keys; }
 $("#collapseAll").addEventListener("click",()=>{
   if(collapsedCols.size) collapsedCols.clear(); else groupKeysNow().forEach(k=>collapsedCols.add(k));
@@ -658,9 +651,7 @@ function renderGroups(){
   const groups=new Map(); for(const c of PROJECT.colOrder) groups.set(c,[]);
   const unclassified=[];
   for(const b of PROJECT.blocks){ if(!b.col) unclassified.push(b); else groups.get(b.col).push(b); }
-  const matchText=b=> !listFilter || norm(b.accion).includes(listFilter) || norm(b.col).includes(listFilter) || norm(b.detalle).includes(listFilter);
-  const matchMan=b=> manualFilter==="all" || (manualFilter==="manual" ? !!b.manual : !b.manual);
-  const match=b=> matchText(b) && matchMan(b);
+  const match=b=> !listFilter || norm(b.accion).includes(listFilter) || norm(b.col).includes(listFilter) || norm(b.detalle).includes(listFilter);
 
   const wrap=document.createElement("div"); wrap.className="ltable";
   const table=document.createElement("table"); table.className="lst";
@@ -689,21 +680,7 @@ function renderGroups(){
   };
   for(const [name,arr] of groups) renderGroup(name,arr,false);
   renderGroup("",unclassified,true);
-  if(!any){ cont.innerHTML=`<div class="empty-state">Sin resultados${listFilter?` para “${esc($("#listSearch").value)}”`:""}${manualFilter!=="all"?` · filtro: ${manualFilter==="manual"?"✋ manual":"auto"}`:""}.</div>`; return; }
-  // lote: volver a automático los manuales visibles (respeta búsqueda + filtro)
-  const visManual=PROJECT.blocks.filter(b=>b.manual && match(b));
-  if(visManual.length){
-    const a=document.createElement("div"); a.className="actbar";
-    a.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.5 2.8L3 8"/><path d="M3 4v4h4"/></svg>
-      <span><b>${visManual.length}</b> listado(s) manual(es) ${(listFilter||manualFilter!=="all")?"en esta vista":"en el proyecto"}.</span>
-      <button class="btn sm" id="batchAuto">Volver todos a automático</button>`;
-    cont.appendChild(a);
-    $("#batchAuto").addEventListener("click",()=>{
-      if(!confirm(`¿Volver ${visManual.length} listado(s) a automático?\n\nTomarán Segmento y Detalle del diccionario según la Acción (los que no tengan entrada en el diccionario mantienen sus valores).`)) return;
-      visManual.forEach(b=>{ b.manual=false; classify(b); });
-      recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix();
-    });
-  }
+  if(!any){ cont.innerHTML=`<div class="empty-state">Sin resultados${listFilter?` para “${esc($("#listSearch").value)}”`:""}.</div>`; return; }
   // aviso de acciones ya duplicadas en el proyecto
   const dups=findDuplicateGroups();
   if(dups.length){
@@ -726,30 +703,32 @@ function reorderSegments(fromName,toName){
   const [m]=a.splice(fi,1); a.splice(ti,0,m);
   persist(); renderGroups(); renderMatrix();
 }
+/* editar Segmento/Detalle en Listados: escribe la regla del Diccionario y re-aplica (fuente de verdad única).
+   Si el listado no tiene Acción (sin clasificar), no hay clave posible → se guarda directo en el listado. */
+function setListadoField(b, field, val){
+  b[field]=val;
+  dictSet(b.accion, field, val);           // no-op si Acción vacía
+  reapplyDict(); persist(); renderCensus(); renderGroups(); renderMatrix(); renderDict();
+}
 function rowEl(b,isUn){
   const tr=document.createElement("tr");
-  tr.className="lrow"+(isUn?" unclassified":"")+(b.manual?" manual":"");
+  tr.className="lrow"+(isUn?" unclassified":"");
   tr.draggable=true; tr.dataset.id=b.id;
   const srcTxt=b.source ? `${esc(b.source.file||"")}${b.source.sheet?" · "+esc(b.source.sheet):""}` : "";
   tr.innerHTML=`
     <td class="cgrip"><span class="grip" title="Arrastrar para reordenar"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span></td>
     <td><input class="colinput" value="${esc(b.col)}" placeholder="segmento…"></td>
-    <td class="acc">${esc(b.accion)}${b.manual?`<button class="mflag" title="Editado a mano — clic para volver a automático (clasifica por la Acción según el diccionario)">✋ manual</button>`:""}</td>
+    <td class="acc">${esc(b.accion)}</td>
     <td><input class="detinput" value="${esc(b.detalle)}" placeholder="detalle…"></td>
     <td class="cnum">${fmt(b.records.length)}</td>
     <td class="src" title="${srcTxt}">${srcTxt}</td>
     <td class="cact"><a class="lnk" data-dl title="Descargar este listado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/></svg></a><button class="xbtn" title="Quitar listado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
   const ci=tr.querySelector(".colinput");
-  ci.addEventListener("change",()=>{ b.col=clean(ci.value); b.manual=true; recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix(); });
+  ci.addEventListener("change",()=>setListadoField(b,"col",clean(ci.value)));
   ci.addEventListener("keydown",e=>{ if(e.key==="Enter") ci.blur(); });
   const di=tr.querySelector(".detinput");
-  di.addEventListener("change",()=>{ b.detalle=clean(di.value); b.manual=true; persist(); renderGroups(); renderMatrix(); });
+  di.addEventListener("change",()=>setListadoField(b,"detalle",clean(di.value)));
   di.addEventListener("keydown",e=>{ if(e.key==="Enter") di.blur(); });
-  const mf=tr.querySelector(".mflag");
-  if(mf) mf.addEventListener("click",ev=>{ ev.stopPropagation();
-    if(!confirm(`¿Volver «${b.accion}» a automático?\n\nVa a tomar Segmento y Detalle del diccionario según la Acción (si no hay entrada en el diccionario, mantiene los valores actuales).`)) return;
-    b.manual=false; classify(b); recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix();
-  });
   tr.querySelector("[data-dl]").addEventListener("click",ev=>{ ev.stopPropagation(); downloadBlock(b); });
   tr.querySelector(".xbtn").addEventListener("click",ev=>{ ev.stopPropagation(); if(!confirm(`¿Quitar el listado «${b.accion}» (${fmt(b.records.length)} clientes)?`))return; PROJECT.blocks=PROJECT.blocks.filter(x=>x.id!==b.id); recomputeColumns(); persist(); renderCensus(); renderGroups(); renderMatrix(); });
   tr.addEventListener("dragstart",e=>{ dragBlockId=b.id; dragGroupName=null; tr.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
@@ -800,25 +779,26 @@ function renderMatrix(){
 function reorderColumns(from,to){ if(from==null||from===to)return; const a=PROJECT.colOrder,[m]=a.splice(from,1); a.splice(to,0,m); persist(); renderMatrix(); }
 function commitRename(oldName,newName){
   if(!newName||newName===oldName)return;
-  PROJECT.blocks.forEach(b=>{ if(b.col===oldName){ b.col=newName; b.manual=true; } });
+  // renombrar el segmento en los listados Y en sus reglas del Diccionario (misma fuente de verdad)
+  PROJECT.blocks.forEach(b=>{ if(b.col===oldName) b.col=newName; });
+  PROJECT.auxDict.forEach(d=>{ if(d.col===oldName) d.col=newName; });
   const idx=PROJECT.colOrder.indexOf(oldName);
   if(idx>=0){ if(PROJECT.colOrder.includes(newName)) PROJECT.colOrder.splice(idx,1); else PROJECT.colOrder[idx]=newName; }
-  persist(); renderCensus(); renderGroups(); renderMatrix();
+  persist(); renderCensus(); renderGroups(); renderMatrix(); renderDict();
 }
 
 /* ============================================================
    Vista DICCIONARIO
    ============================================================ */
-/* re-clasifica los listados NO editados a mano según el diccionario actual; devuelve cuántos cambiaron */
-function reapplyDict(){ let n=0; PROJECT.blocks.forEach(b=>{ if(b.manual)return; const before=b.col+"|"+b.detalle; classify(b); if(before!==b.col+"|"+b.detalle)n++; }); recomputeColumns(); return n; }
-/* INVARIANTE: todo listado AUTO (no-manual) debe tener SU entrada en el diccionario,
-   para que siempre se pueda gestionar desde ahí y nunca quede "roto" (auto sin regla).
+/* re-clasifica TODOS los listados según el diccionario actual; devuelve cuántos cambiaron */
+function reapplyDict(){ let n=0; PROJECT.blocks.forEach(b=>{ const before=b.col+"|"+b.detalle; classify(b); if(before!==b.col+"|"+b.detalle)n++; }); recomputeColumns(); return n; }
+/* INVARIANTE: todo listado con Acción debe tener SU entrada en el diccionario,
+   para que siempre se pueda gestionar desde ahí y nunca quede "roto" (sin regla).
    Crea la entrada faltante tomando la Columna/Detalle del propio listado. Devuelve cuántas creó. */
 function ensureDictCoverage(){
   const have=new Set(); for(const d of PROJECT.auxDict){ const k=norm(d.accion); if(k) have.add(k); }
   let added=0;
   for(const b of PROJECT.blocks){
-    if(b.manual) continue;                 // los manuales se gestionan a mano, no necesitan regla
     const k=norm(b.accion); if(!k || have.has(k)) continue;
     PROJECT.auxDict.push({accion:b.accion, col:b.col, detalle:b.detalle});
     have.add(k); added++;
@@ -849,21 +829,20 @@ function renderDict(){
       <td><input data-f="col" value="${esc(d.col)}" placeholder="Segmento…"></td>
       <td><input data-f="detalle" value="${esc(d.detalle)}" placeholder="Detalle…"></td>
       <td class="delcol"><button class="delx" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
-    // editar una fila → guardar y re-aplicar automáticamente a la matriz (sin tocar los editados a mano)
+    // editar una fila → guardar y re-aplicar automáticamente a la matriz
     tr.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",()=>{ d[inp.dataset.f]=clean(inp.value); reapplyDict(); persist(); renderCensus(); renderGroups(); renderMatrix(); }));
     tr.querySelector(".delx").addEventListener("click",()=>{
-      const k=norm(d.accion);
-      // al borrar la regla, los listados AUTO que dependían de ella pasan a manual
-      // (conservan Columna/Detalle y siguen gestionables): nunca quedan huérfanos
-      if(k) PROJECT.blocks.forEach(b=>{ if(!b.manual && norm(b.accion)===k) b.manual=true; });
-      PROJECT.auxDict.splice(i,1); reapplyDict(); persist(); renderDict(); renderCensus(); renderGroups(); renderMatrix();
+      PROJECT.auxDict.splice(i,1);
+      // si algún listado dependía de esta Acción, su regla se re-crea con los valores actuales (nunca queda huérfano)
+      ensureDictCoverage();
+      reapplyDict(); persist(); renderDict(); renderCensus(); renderGroups(); renderMatrix();
     });
     tb.appendChild(tr);
   });
   if(!PROJECT.auxDict.length) tb.innerHTML=`<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--muted)">Sin entradas. Importá una hoja Auxiliar desde Excel o agregá filas a mano.</td></tr>`;
 }
 $("#dictAdd").addEventListener("click",()=>{ PROJECT.auxDict.push({accion:"",col:"",detalle:""}); persist(); renderDict(); renderCensus(); });
-$("#dictApply").addEventListener("click",()=>{ const n=reapplyDict(); persist(); renderAll(); alert(`Diccionario re-aplicado. ${n} listado(s) actualizado(s). (Los editados a mano no se tocan.)`); });
+$("#dictApply").addEventListener("click",()=>{ const n=reapplyDict(); persist(); renderAll(); alert(`Diccionario re-aplicado. ${n} listado(s) actualizado(s).`); });
 $("#dictImport").addEventListener("click",()=>$("#dictFile").click());
 $("#dictFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; readWB(f,wb=>{ importDictFromWB(wb); e.target.value=""; }); });
 /* lee la hoja Auxiliar/Diccionario de un workbook (o la 1ra hoja si allowFallback) */
