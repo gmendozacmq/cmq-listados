@@ -296,7 +296,7 @@
       <div class="spacer"></div>
       <div class="saved" id="savedTag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 13 4 4L19 7"/></svg>Guardado</div>
       <div class="census" id="census"></div>
-      <button class="btn ghost" id="importBtn" title="Importar un Excel (listados en bloques, una lista de clientes, o una Matriz guardada) y elegir si crea listados nuevos o reemplaza existentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar / Agregar</button>
+      <button class="btn ghost" id="importBtn" title="Abrir un proyecto guardado: un Excel de Matriz o un .json exportado (crea un proyecto nuevo o reemplaza el actual)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar proyecto</button>
       <button class="btn" id="exportBtn" title="Descarga un Excel con la Matriz + los Listados + el Diccionario, para volver a abrirlo después"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Guardar</button>
     </div>
   </div>
@@ -317,7 +317,8 @@
           <button data-f="auto" title="Solo listados clasificados por el diccionario">Auto</button>
         </div>
         <button class="btn ghost sm" id="collapseAll" title="Plegar o desplegar todos los grupos">Colapsar todo</button>
-        <span class="hint">Clic en un grupo (Segmento) para plegarlo · ✋ = editado a mano · arrastrá para reordenar · usá <b>Importar / Agregar</b> (arriba) para sumar listados</span>
+        <span class="hint">Clic en un grupo (Segmento) para plegarlo · ✋ = editado a mano · arrastrá para reordenar</span>
+        <button class="btn" id="addListadoBtn" style="margin-left:auto" title="Agregá uno o más listados (Excel de clientes, bloques, o una Matriz guardada) al proyecto actual"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Agregar listado</button>
       </div>
       <div id="groups"></div>
     </section>
@@ -348,7 +349,7 @@
 <!-- ============ MODAL AGREGAR LISTADOS ============ -->
 <div class="modal" id="addModal">
   <div class="modal-card" style="max-width:780px">
-    <div class="modal-h"><b>Importar / Agregar listados</b><button class="x" id="addClose">✕</button></div>
+    <div class="modal-h"><b>Agregar listados</b><button class="x" id="addClose">✕</button></div>
     <div class="modal-body">
       <label class="drop" id="addDrop">
         <strong>Arrastrá uno o más Excel acá</strong>
@@ -415,6 +416,7 @@
 
 <input type="file" id="dictFile" accept=".xlsx,.xls,.xlsm" style="display:none">
 <input type="file" id="projImportFile" accept=".json" style="display:none">
+<input type="file" id="projFile" accept=".xlsx,.xls,.xlsm,.json" style="display:none">
 
 <script>
 "use strict";
@@ -589,11 +591,26 @@ $("#projRename").addEventListener("click",()=>{ const n=prompt("Nuevo nombre del
 $("#projMenu").addEventListener("click",async()=>{
   const a=prompt("Acciones del proyecto «"+PROJECT.name+"»:\n\n1 = Duplicar\n2 = Exportar a .json (backup/mover de PC)\n3 = Importar proyecto desde .json\n4 = Borrar proyecto\n\nEscribí el número:");
   if(a==="1"){ const c=JSON.parse(JSON.stringify(PROJECT)); c.id=newProject().id; c.name=PROJECT.name+" (copia)"; c.created=c.updated=Date.now(); PROJECTS.push(c); PROJECT=c; await DB.put("projects",c); await DB.put("meta",{k:"last",id:c.id}); renderAll(); }
-  else if(a==="2"){ const blob=new Blob([JSON.stringify(PROJECT,null,2)],{type:"application/json"}); const url=URL.createObjectURL(blob); const dl=document.createElement("a"); dl.href=url; dl.download=fileSafe(PROJECT.name)+".json"; dl.click(); URL.revokeObjectURL(url); }
+  else if(a==="2"){ exportProjectJSON(); }
   else if(a==="3"){ $("#projImportFile").click(); }
   else if(a==="4"){ if(PROJECTS.length<=1){ alert("No podés borrar el único proyecto. Creá otro antes."); return; } if(!confirm("¿Borrar definitivamente «"+PROJECT.name+"»? Esto no se puede deshacer.")) return; await DB.del("projects",PROJECT.id); PROJECTS=PROJECTS.filter(p=>p.id!==PROJECT.id); PROJECT=PROJECTS[0]; await DB.put("meta",{k:"last",id:PROJECT.id}); renderAll(); }
 });
-$("#projImportFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async ev=>{ try{ const p=JSON.parse(ev.target.result); p.id=newProject().id; p.name=(p.name||"Importado")+" (importado)"; p.created=p.updated=Date.now(); p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[]; PROJECTS.push(p); PROJECT=p; await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll(); }catch(err){ alert("No pude leer el .json: "+err.message); } }; r.readAsText(f); e.target.value=""; });
+/* baja el proyecto actual como .json (backup / mover de PC) */
+function exportProjectJSON(){
+  const blob=new Blob([JSON.stringify(PROJECT,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob); const dl=document.createElement("a");
+  dl.href=url; dl.download=fileSafe(PROJECT.name)+".json"; dl.click(); URL.revokeObjectURL(url);
+}
+/* crea un proyecto NUEVO desde el texto de un .json exportado */
+async function importProjectFromJSON(text, srcName){
+  try{ const p=JSON.parse(text);
+    p.id=newProject().id; p.name=(p.name||srcName||"Importado")+" (importado)"; p.created=p.updated=Date.now();
+    p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[];
+    PROJECTS.push(p); PROJECT=p; ensureDictCoverage();
+    await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll();
+  }catch(err){ alert("No pude leer el .json: "+err.message); }
+}
+$("#projImportFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>importProjectFromJSON(ev.target.result, f.name.replace(/\.[^.]+$/,"")); r.readAsText(f); e.target.value=""; });
 
 /* ============================================================
    Census + tabs
@@ -634,8 +651,8 @@ function renderGroups(){
   const cont=$("#groups"); const _old=cont.querySelector(".ltable"); const _sc=_old?_old.scrollTop:0; cont.innerHTML="";
   if(!PROJECT.blocks.length){
     cont.innerHTML=`<div class="empty-state"><div class="big">Este proyecto está vacío</div>
-      Importá un Excel con listados de clientes, o arrastrá una Matriz guardada para seguir trabajándola.<br>
-      <button class="btn" onclick="document.getElementById('importBtn').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar / Abrir</button></div>`;
+      Agregá un Excel con listados de clientes (o arrastrá una Matriz guardada), o importá un proyecto guardado desde arriba.<br>
+      <button class="btn" onclick="document.getElementById('addListadoBtn').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>Agregar listado</button></div>`;
     return;
   }
   const groups=new Map(); for(const c of PROJECT.colOrder) groups.set(c,[]);
@@ -956,7 +973,16 @@ function openSavedFlow(file,wb,saved){
    ============================================================ */
 let ADD={ blocks:[] , dict:[] };
 const addModal=$("#addModal");
-$("#importBtn").addEventListener("click",openAdd);   // botón único "Importar / Agregar"
+$("#addListadoBtn").addEventListener("click",openAdd);   // CTA verde "Agregar listado" (suma listados al proyecto actual)
+$("#importBtn").addEventListener("click",()=>$("#projFile").click());   // "Importar proyecto": Excel de Matriz o .json exportado
+$("#projFile").addEventListener("change",async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f)return;
+  if(/\.json$/i.test(f.name)){ const r=new FileReader(); r.onload=ev=>importProjectFromJSON(ev.target.result, f.name.replace(/\.[^.]+$/,"")); r.readAsText(f); return; }
+  const wb=await readWBp(f); if(!wb)return;
+  const saved=detectSaved(wb);
+  if(saved){ openSavedFlow(f,wb,saved); return; }
+  alert("Ese Excel no es una Matriz guardada por la herramienta.\n\nSi querés sumar listados de clientes al proyecto, usá el botón verde «Agregar listado».");
+});
 $("#addClose").addEventListener("click",closeAdd);
 $("#addCancel").addEventListener("click",closeAdd);
 addModal.addEventListener("click",e=>{ if(e.target===addModal) closeAdd(); });
@@ -1375,6 +1401,12 @@ $("#distApply").addEventListener("click",()=>{
    ============================================================ */
 $("#exportBtn").addEventListener("click",()=>{
   if(!PROJECT.blocks.length){ alert("No hay listados para guardar."); return; }
+  const c=prompt("¿Cómo querés guardar «"+PROJECT.name+"»?\n\n1 = Excel (Matriz + Listados + Diccionario, para ver y reabrir)\n2 = .json (backup / mover de PC)\n\nEscribí 1 o 2:","1");
+  if(c==null) return;
+  if(clean(c)==="2"){ exportProjectJSON(); return; }
+  exportMatrixExcel();
+});
+function exportMatrixExcel(){
   const {header,rows}=buildMatrix();
   const wb=XLSX.utils.book_new();
   // Hoja 1 · Matriz (para ver/pegar)
@@ -1388,7 +1420,7 @@ $("#exportBtn").addEventListener("click",()=>{
   for(const d of PROJECT.auxDict) daoa.push([d.accion,d.col,d.detalle]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(daoa), "Auxiliar");
   XLSX.writeFile(wb, fileSafe(PROJECT.name)+"_matriz.xlsx");
-});
+}
 
 /* copiar la matriz completa al portapapeles (TSV, pegable en Excel) */
 $("#copyMatrix").addEventListener("click",()=>{
