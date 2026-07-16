@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matriz de Listados · Acciones</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Matriz Listados">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
@@ -75,7 +84,7 @@
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
   .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;flex:none}
-  .toolbar .hint{font-size:12.5px;color:var(--faint);font-family:var(--mono)}
+  .hint{font-size:12.5px;color:var(--faint);font-family:var(--mono)}
   .search{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
     border-radius:10px;padding:7px 11px;font-size:13.5px;box-shadow:var(--shadow)}
   .search input{border:0;outline:0;background:none;width:180px;font-size:13.5px}
@@ -141,9 +150,10 @@
   table.lst td.cact .xbtn{color:var(--faint);vertical-align:middle}
   table.lst td.cact .xbtn:hover{color:var(--neg)}
   table.lst td.cact svg{width:15px;height:15px;display:block}
-  table.lst input.colinput,table.lst input.detinput,table.lst input.accinput{width:100%;min-width:80px;border:1px solid transparent;
+  table.lst input.colinput,table.lst input.detinput,table.lst input.accinput,table.lst input.neginput{width:100%;min-width:80px;border:1px solid transparent;
     background:none;padding:4px 6px;border-radius:6px;font-size:12.5px;font-family:var(--mono)}
   table.lst input.accinput{font-family:var(--sans);font-weight:600}
+  table.lst input.neginput:focus{outline:0;border-color:var(--accent);background:#fff}
   table.lst input:disabled{color:var(--accent);font-weight:700;opacity:1;-webkit-text-fill-color:var(--accent)}
   table.lst select.repsel{width:100%;min-width:120px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;
     font-size:12px;background:var(--panel);color:var(--ink)}
@@ -177,6 +187,12 @@
   table.lst tr.grp .ggrip svg{width:13px;height:13px;display:block}
   table.lst tr.grp.drag td{opacity:.45}
   table.lst tr.grp.over td{box-shadow:inset 0 2px 0 var(--accent)}
+  /* nivel madre (Negocio) vs hijo (Segmento) */
+  table.lst tr.grp.neg td{background:var(--accent-soft);border-top:2px solid var(--accent);border-bottom:1px solid #bfe6df}
+  table.lst tr.grp.neg:hover td{background:#cdeee9}
+  table.lst tr.grp.neg .gname{color:var(--accent);font-size:13.5px;text-transform:uppercase;letter-spacing:.02em}
+  table.lst tr.grp.seg td{background:var(--panel2)}
+  table.lst tr.grp.seg .gname{font-size:12.5px}
   .badge{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:5px;font-weight:700;white-space:nowrap}
   .badge.dic{background:var(--accent-soft);color:var(--accent)}
   .badge.arch{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
@@ -232,6 +248,7 @@
 
   /* ---- diccionario ---- */
   .dicttable{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;flex:1;min-height:0}
+  .dicttable:focus{outline:none}
   table.dict{width:100%;border-collapse:collapse;font-size:13px}
   table.dict th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
     font-family:var(--mono);padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel2);
@@ -243,6 +260,25 @@
   table.dict .delcol{width:40px;text-align:center}
   table.dict .delx{color:var(--faint)}
   table.dict .delx:hover{color:var(--neg)}
+  /* grilla editable tipo Excel */
+  table.dict td.cell{padding:0;cursor:cell;user-select:none;position:relative;scroll-margin-top:46px;scroll-margin-bottom:10px}
+  table.dict td.cell .cv{display:block;min-height:32px;line-height:20px;padding:6px 8px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  table.dict td.cell.sel{background:var(--accent-soft)}
+  table.dict td.cell.sel-active{box-shadow:inset 0 0 0 2px var(--accent)}
+  table.dict input.celledit{width:100%;border:0;outline:2px solid var(--accent);outline-offset:-2px;background:#fff;padding:6px 8px;font-size:13px;font-family:inherit;border-radius:0}
+  /* marching ants: borde punteado animado en el rango copiado (como Excel) */
+  @keyframes dictAnts{ to{ background-position:12px 0, -12px 100%, 0 -12px, 100% 12px; } }
+  table.dict td.cell.copied{
+    background-image:
+      linear-gradient(90deg,var(--accent) 50%,transparent 50%),
+      linear-gradient(90deg,var(--accent) 50%,transparent 50%),
+      linear-gradient(0deg,var(--accent) 50%,transparent 50%),
+      linear-gradient(0deg,var(--accent) 50%,transparent 50%);
+    background-repeat:repeat-x,repeat-x,repeat-y,repeat-y;
+    background-size:12px 2px,12px 2px,2px 12px,2px 12px;
+    background-position:0 0,0 100%,0 0,100% 0;
+    animation:dictAnts .5s linear infinite;
+  }
 
   /* ---- modal ---- */
   .modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(15,23,32,.45);
@@ -293,6 +329,7 @@
       <div class="spacer"></div>
       <div class="saved" id="savedTag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 13 4 4L19 7"/></svg>Guardado</div>
       <div class="census" id="census"></div>
+      <button class="btn ghost" id="installBtn" hidden title="Instalar esta herramienta como app en tu equipo (funciona offline)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Instalar app</button>
       <button class="btn ghost" id="importBtn" title="Abrir un proyecto guardado: un Excel de Matriz o un .json exportado (crea un proyecto nuevo o reemplaza el actual)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar proyecto</button>
       <button class="btn" id="exportBtn" title="Descarga un Excel con la Matriz + los Listados + el Diccionario, para volver a abrirlo después"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Guardar</button>
     </div>
@@ -308,10 +345,10 @@
     <section class="view on" id="view-listados">
       <div class="toolbar">
         <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="listSearch" placeholder="Buscar acción o segmento…"></div>
-        <button class="btn ghost sm" id="collapseAll" title="Plegar o desplegar todos los grupos">Colapsar todo</button>
-        <span class="hint">Editás Segmento/Detalle acá o en el Diccionario: es la misma regla (por Acción) · clic en un grupo para plegarlo · arrastrá para reordenar</span>
-        <button class="btn" id="addListadoBtn" style="margin-left:auto" title="Agregá uno o más listados (Excel de clientes, bloques, o una Matriz guardada) al proyecto actual"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Agregar listado</button>
+        <button class="btn ghost sm" id="collapseAll" style="margin-left:auto" title="Plegar o desplegar todos los grupos">Colapsar todo</button>
+        <button class="btn" id="addListadoBtn" title="Agregá uno o más listados (Excel de clientes, bloques, o una Matriz guardada) al proyecto actual"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Agregar listado</button>
       </div>
+      <span class="hint" style="display:block;margin:-6px 0 12px">Editás Segmento/Detalle acá o en el Diccionario: es la misma regla (por Acción) · clic en un grupo para plegarlo · arrastrá para reordenar</span>
       <div id="groups"></div>
     </section>
 
@@ -330,10 +367,10 @@
         <button class="btn sm" id="dictImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>Importar desde Excel</button>
         <button class="btn ghost sm" id="dictAdd">+ fila</button>
         <button class="btn ghost sm" id="dictApply" title="Re-clasificar todos los listados según el diccionario (por Acción)">Re-aplicar a listados</button>
-        <span class="hint">Acción → Segmento → Detalle · los cambios se aplican solos a los listados (una sola regla por Acción)</span>
+        <span class="hint"><b>Flechas</b> navegan · <b>Shift+flechas</b> seleccionan · <b>Ctrl+flecha</b> salta al borde · doble clic/Enter edita · <b>Ctrl+Enter</b> rellena la selección · <b>Ctrl+C/V</b> copia/pega · Supr borra</span>
       </div>
       <div id="dictWarn"></div>
-      <div class="dicttable"><table class="dict"><thead><tr><th>Acción</th><th>Segmento</th><th>Detalle</th><th class="delcol"></th></tr></thead><tbody id="dictBody"></tbody></table></div>
+      <div class="dicttable" id="dictBox" tabindex="0"><table class="dict"><thead><tr><th>Negocio</th><th>Acción</th><th>Segmento</th><th>Detalle</th><th class="delcol"></th></tr></thead><tbody id="dictBody"></tbody></table></div>
     </section>
   </div>
 </div>
@@ -495,22 +532,66 @@ let PROJECT=null, PROJECTS=[];
 function newProject(name){
   return { id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
     name:name||"Proyecto 1", created:Date.now(), updated:Date.now(),
-    auxDict:[], blocks:[], colOrder:[] };
+    auxDict:[], blocks:[], colOrder:[], negOrder:[] };
 }
 
 let saveTimer=null;
 function persist(){
   if(!PROJECT) return;
-  PROJECT.updated=Date.now();
+  histPush();                 // snapshot para Undo/Redo (antes de tocar 'updated')
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    // guardar sin pdvSet (no existe; records ya es serializable)
+    PROJECT.updated=Date.now();
     await DB.put("projects", PROJECT);
     await DB.put("meta",{k:"last",id:PROJECT.id});
     flashSaved();
   },250);
 }
 function flashSaved(){ const t=$("#savedTag"); t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1100); }
+
+/* ============================================================
+   Undo / Redo (Ctrl+Z / Ctrl+Y · Ctrl+Shift+Z) — historial del proyecto activo
+   Snapshotea el PROJECT en cada persist(); cubre TODO (Diccionario, Listados,
+   Matriz, borrados, reordenamientos) porque todo termina llamando persist().
+   ============================================================ */
+const HISTMAX=60; let HIST=[], HISTi=-1, histProjId=null, histSuspend=false;
+const snapStr=()=>JSON.stringify(PROJECT);
+function histReset(){ if(!PROJECT){ HIST=[]; HISTi=-1; histProjId=null; return; } histProjId=PROJECT.id; HIST=[snapStr()]; HISTi=0; }
+function histPush(){
+  if(histSuspend||!PROJECT) return;
+  if(histProjId!==PROJECT.id||HISTi<0){ histReset(); return; }   // cambió el proyecto activo: re-base
+  const s=snapStr(); if(HIST[HISTi]===s) return;                 // sin cambios reales: no duplicar
+  HIST=HIST.slice(0,HISTi+1); HIST.push(s);
+  if(HIST.length>HISTMAX) HIST.shift();
+  HISTi=HIST.length-1;
+}
+function histRestore(str){
+  histSuspend=true;
+  const p=JSON.parse(str);
+  const idx=PROJECTS.findIndex(x=>x.id===p.id);
+  if(idx>=0) PROJECTS[idx]=p;
+  PROJECT=p;
+  DB.put("projects",PROJECT); DB.put("meta",{k:"last",id:PROJECT.id});
+  recomputeColumns(); renderAll();
+  histSuspend=false;
+}
+function histUndo(){ if(HISTi<=0) return; HISTi--; histRestore(HIST[HISTi]); histFlash("Deshecho ↶"); }
+function histRedo(){ if(HISTi>=HIST.length-1) return; HISTi++; histRestore(HIST[HISTi]); histFlash("Rehecho ↷"); }
+function histFlash(msg){
+  let t=$("#histToast");
+  if(!t){ t=document.createElement("div"); t.id="histToast";
+    t.style.cssText="position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:200;background:#0f172a;color:#fff;font-size:13px;font-weight:600;padding:8px 16px;border-radius:20px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:opacity .15s;pointer-events:none";
+    document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity="1";
+  clearTimeout(histFlash._t); histFlash._t=setTimeout(()=>{ t.style.opacity="0"; },1000);
+}
+document.addEventListener("keydown",e=>{
+  if(!(e.ctrlKey||e.metaKey)) return;
+  const ae=document.activeElement; if(ae&&/^(input|textarea)$/i.test(ae.tagName)) return;   // dejar el undo NATIVO del campo de texto
+  const k=e.key.toLowerCase();
+  if(k==="z"&&!e.shiftKey){ e.preventDefault(); histUndo(); }
+  else if(k==="y"||(k==="z"&&e.shiftKey)){ e.preventDefault(); histRedo(); }
+});
 
 /* diccionario map runtime */
 function dictMap(){ const m=new Map(); for(const d of PROJECT.auxDict){ const k=norm(d.accion); if(k) m.set(k,d); } return m; }
@@ -519,11 +600,45 @@ function dictMap(){ const m=new Map(); for(const d of PROJECT.auxDict){ const k=
    Modelo derivado: columnas, filas, matriz (lógica verificada)
    ============================================================ */
 function recomputeColumns(){
+  // segmentos (Segmento = b.col)
   const seen=new Set(), order=[];
   for(const c of PROJECT.colOrder){ if(c && PROJECT.blocks.some(b=>b.col===c) && !seen.has(c)){ seen.add(c); order.push(c); } }
   for(const b of PROJECT.blocks){ const c=b.col; if(c && !seen.has(c)){ seen.add(c); order.push(c); } }
   PROJECT.colOrder=order;
+  // negocios (grupo madre = b.negocio)
+  PROJECT.negOrder=PROJECT.negOrder||[];
+  const seenN=new Set(), orderN=[];
+  for(const n of PROJECT.negOrder){ if(n && PROJECT.blocks.some(b=>(b.negocio||"")===n) && !seenN.has(n)){ seenN.add(n); orderN.push(n); } }
+  for(const b of PROJECT.blocks){ const n=b.negocio||""; if(n && !seenN.has(n)){ seenN.add(n); orderN.push(n); } }
+  PROJECT.negOrder=orderN;
   return order;
+}
+/* ---- jerarquía Negocio › Segmento › listado (orden único, usado por Listados, Matriz y Diccionario) ---- */
+function presentNegocios(){   // negocios presentes en orden; "" (sin negocio) al final si existe
+  const present=new Set(PROJECT.blocks.map(b=>b.negocio||"")); const out=[];
+  for(const n of (PROJECT.negOrder||[])){ if(n && present.has(n)){ out.push(n); present.delete(n); } }
+  for(const b of PROJECT.blocks){ const n=b.negocio||""; if(n && present.has(n)){ out.push(n); present.delete(n); } }
+  if(present.has("")) out.push("");
+  return out;
+}
+function segmentsUnder(neg){   // segmentos presentes bajo ese negocio, en orden; "" al final si existe
+  const present=new Set(PROJECT.blocks.filter(b=>(b.negocio||"")===neg).map(b=>b.col||"")); const out=[];
+  for(const c of (PROJECT.colOrder||[])){ if(c && present.has(c)){ out.push(c); present.delete(c); } }
+  for(const b of PROJECT.blocks){ if((b.negocio||"")===neg){ const c=b.col||""; if(c && present.has(c)){ out.push(c); present.delete(c); } } }
+  if(present.has("")) out.push("");
+  return out;
+}
+function blocksIn(neg,seg){ return PROJECT.blocks.filter(b=>(b.negocio||"")===neg && (b.col||"")===seg); }
+function orderedBlocks(){   // todos los listados en el orden en que se ven en la tab Listados
+  recomputeColumns(); const out=[], used=new Set();
+  for(const neg of presentNegocios()) for(const seg of segmentsUnder(neg)) for(const b of blocksIn(neg,seg)){ if(!used.has(b.id)){ used.add(b.id); out.push(b); } }
+  for(const b of PROJECT.blocks){ if(!used.has(b.id)){ used.add(b.id); out.push(b); } }
+  return out;
+}
+function orderedSegments(){   // segmentos únicos en el orden de Listados (para las columnas de la Matriz)
+  const segs=[], seen=new Set();
+  for(const neg of presentNegocios()) for(const seg of segmentsUnder(neg)){ if(seg && !seen.has(seg)){ seen.add(seg); segs.push(seg); } }
+  return segs;
 }
 function rowOrder(){
   const seen=new Set(), rows=[];
@@ -531,7 +646,8 @@ function rowOrder(){
   return rows;
 }
 function buildMatrix(){
-  const cols=recomputeColumns();
+  recomputeColumns();
+  const cols=orderedSegments();   // orden de columnas = orden de la tab Listados (Negocio › Segmento)
   const map=new Map(); // pdv -> {col:detalle}  (primer bloque gana)
   for(const b of PROJECT.blocks){
     if(!b.col) continue;
@@ -548,13 +664,13 @@ function buildMatrix(){
 /* clasificación efectiva al crear/recalcular un bloque desde el Diccionario (única fuente de verdad, por Acción) */
 function classify(block){
   const d=dictMap().get(norm(block.accion));
-  if(d){ if(d.col) block.col=d.col; if(d.detalle) block.detalle=d.detalle; }
+  if(d){ if(d.negocio) block.negocio=d.negocio; if(d.col) block.col=d.col; if(d.detalle) block.detalle=d.detalle; }
 }
-/* escribe un campo (col|detalle) del listado ENCIMA de su regla del Diccionario (write-through, por Acción) */
+/* escribe un campo (negocio|col|detalle) del listado ENCIMA de su regla del Diccionario (write-through, por Acción) */
 function dictSet(accion, field, val){
   const k=norm(accion); if(!k) return null;
   let e=PROJECT.auxDict.find(d=>norm(d.accion)===k);
-  if(!e){ e={accion:clean(accion),col:"",detalle:""}; PROJECT.auxDict.push(e); }
+  if(!e){ e={accion:clean(accion),negocio:"",col:"",detalle:""}; PROJECT.auxDict.push(e); }
   e[field]=val; return e;
 }
 
@@ -568,9 +684,10 @@ function dictSet(accion, field, val){
   if(!PROJECTS.length){ PROJECT=newProject("Proyecto 1"); PROJECTS=[PROJECT]; await DB.put("projects",PROJECT); }
   else PROJECT = PROJECTS.find(p=>p.id===(last&&last.id)) || PROJECTS[0];
   // sanear estructura
-  PROJECTS.forEach(p=>{ p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[]; });
+  PROJECTS.forEach(p=>{ p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[]; p.negOrder=p.negOrder||[]; });
   if(ensureDictCoverage()) persist();   // sana el proyecto activo si tenía listados auto sin regla
   renderAll();
+  histReset();
 })();
 
 function renderAll(){ renderProjects(); renderCensus(); renderGroups(); renderMatrix(); renderDict(); }
@@ -583,15 +700,15 @@ function renderProjects(){
   PROJECTS.sort((a,b)=>b.updated-a.updated);
   for(const p of PROJECTS){ const o=document.createElement("option"); o.value=p.id; o.textContent=p.name; if(p.id===PROJECT.id)o.selected=true; sel.appendChild(o); }
 }
-$("#projSelect").addEventListener("change",async e=>{ PROJECT=PROJECTS.find(p=>p.id===e.target.value); await DB.put("meta",{k:"last",id:PROJECT.id}); if(ensureDictCoverage()) persist(); renderAll(); });
-$("#projNew").addEventListener("click",async()=>{ const n=prompt("Nombre del nuevo proyecto:","Proyecto "+(PROJECTS.length+1)); if(n==null)return; const p=newProject(clean(n)||("Proyecto "+(PROJECTS.length+1))); PROJECTS.push(p); PROJECT=p; await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll(); });
+$("#projSelect").addEventListener("change",async e=>{ PROJECT=PROJECTS.find(p=>p.id===e.target.value); await DB.put("meta",{k:"last",id:PROJECT.id}); if(ensureDictCoverage()) persist(); renderAll(); histReset(); });
+$("#projNew").addEventListener("click",async()=>{ const n=prompt("Nombre del nuevo proyecto:","Proyecto "+(PROJECTS.length+1)); if(n==null)return; const p=newProject(clean(n)||("Proyecto "+(PROJECTS.length+1))); PROJECTS.push(p); PROJECT=p; await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll(); histReset(); });
 $("#projRename").addEventListener("click",()=>{ const n=prompt("Nuevo nombre del proyecto:",PROJECT.name); if(n==null)return; PROJECT.name=clean(n)||PROJECT.name; persist(); renderProjects(); });
 $("#projMenu").addEventListener("click",async()=>{
   const a=prompt("Acciones del proyecto «"+PROJECT.name+"»:\n\n1 = Duplicar\n2 = Exportar a .json (backup/mover de PC)\n3 = Importar proyecto desde .json\n4 = Borrar proyecto\n\nEscribí el número:");
-  if(a==="1"){ const c=JSON.parse(JSON.stringify(PROJECT)); c.id=newProject().id; c.name=PROJECT.name+" (copia)"; c.created=c.updated=Date.now(); PROJECTS.push(c); PROJECT=c; await DB.put("projects",c); await DB.put("meta",{k:"last",id:c.id}); renderAll(); }
+  if(a==="1"){ const c=JSON.parse(JSON.stringify(PROJECT)); c.id=newProject().id; c.name=PROJECT.name+" (copia)"; c.created=c.updated=Date.now(); PROJECTS.push(c); PROJECT=c; await DB.put("projects",c); await DB.put("meta",{k:"last",id:c.id}); renderAll(); histReset(); }
   else if(a==="2"){ exportProjectJSON(); }
   else if(a==="3"){ $("#projImportFile").click(); }
-  else if(a==="4"){ if(PROJECTS.length<=1){ alert("No podés borrar el único proyecto. Creá otro antes."); return; } if(!confirm("¿Borrar definitivamente «"+PROJECT.name+"»? Esto no se puede deshacer.")) return; await DB.del("projects",PROJECT.id); PROJECTS=PROJECTS.filter(p=>p.id!==PROJECT.id); PROJECT=PROJECTS[0]; await DB.put("meta",{k:"last",id:PROJECT.id}); renderAll(); }
+  else if(a==="4"){ if(PROJECTS.length<=1){ alert("No podés borrar el único proyecto. Creá otro antes."); return; } if(!confirm("¿Borrar definitivamente «"+PROJECT.name+"»? Esto no se puede deshacer.")) return; await DB.del("projects",PROJECT.id); PROJECTS=PROJECTS.filter(p=>p.id!==PROJECT.id); PROJECT=PROJECTS[0]; await DB.put("meta",{k:"last",id:PROJECT.id}); renderAll(); histReset(); }
 });
 /* baja el proyecto actual como .json (backup / mover de PC) */
 function exportProjectJSON(){
@@ -603,9 +720,9 @@ function exportProjectJSON(){
 async function importProjectFromJSON(text, srcName){
   try{ const p=JSON.parse(text);
     p.id=newProject().id; p.name=(p.name||srcName||"Importado")+" (importado)"; p.created=p.updated=Date.now();
-    p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[];
+    p.auxDict=p.auxDict||[]; p.blocks=p.blocks||[]; p.colOrder=p.colOrder||[]; p.negOrder=p.negOrder||[];
     PROJECTS.push(p); PROJECT=p; ensureDictCoverage();
-    await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll();
+    await DB.put("projects",p); await DB.put("meta",{k:"last",id:p.id}); renderAll(); histReset();
   }catch(err){ alert("No pude leer el .json: "+err.message); }
 }
 $("#projImportFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>importProjectFromJSON(ev.target.result, f.name.replace(/\.[^.]+$/,"")); r.readAsText(f); e.target.value=""; });
@@ -630,17 +747,28 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
    Vista LISTADOS
    ============================================================ */
 let listFilter="";
-const UNCL="_uncl"; let collapsedCols=new Set();
+const UNCL="_uncl";
+let collapsedCols=new Set();   // claves de segmento (SEG:neg§seg)
+let collapsedNegs=new Set();   // claves de negocio (NEG:neg)
+const negKey=neg=> "NEG:"+(neg===""?UNCL:neg);
+const segKey=(neg,seg)=> "SEG:"+(neg===""?UNCL:neg)+"§"+(seg===""?UNCL:seg);
+const hasNegocios=()=> presentNegocios().some(n=>n!=="");
 $("#listSearch").addEventListener("input",e=>{ listFilter=norm(e.target.value); renderGroups(); });
-function groupKeysNow(){ const keys=[], cols=new Set(); PROJECT.blocks.forEach(b=>{ if(b.col)cols.add(b.col); }); cols.forEach(c=>keys.push(c)); if(PROJECT.blocks.some(b=>!b.col)) keys.push(UNCL); return keys; }
 $("#collapseAll").addEventListener("click",()=>{
-  if(collapsedCols.size) collapsedCols.clear(); else groupKeysNow().forEach(k=>collapsedCols.add(k));
+  if(hasNegocios()){
+    if(collapsedNegs.size){ collapsedNegs.clear(); collapsedCols.clear(); }
+    else presentNegocios().forEach(n=>collapsedNegs.add(negKey(n)));
+  } else {
+    if(collapsedCols.size) collapsedCols.clear();
+    else segmentsUnder("").forEach(s=>collapsedCols.add(segKey("",s)));
+  }
   renderGroups();
 });
 
+const LST_COLS=8;   // cgrip | Negocio | Segmento | Acción | Detalle | Clientes | Origen | cact
 function renderGroups(){
   recomputeColumns();
-  $("#collapseAll").textContent = collapsedCols.size?"Expandir todo":"Colapsar todo";
+  $("#collapseAll").textContent = (collapsedNegs.size||collapsedCols.size)?"Expandir todo":"Colapsar todo";
   const cont=$("#groups"); const _old=cont.querySelector(".ltable"); const _sc=_old?_old.scrollTop:0; cont.innerHTML="";
   if(!PROJECT.blocks.length){
     cont.innerHTML=`<div class="empty-state"><div class="big">Este proyecto está vacío</div>
@@ -648,38 +776,65 @@ function renderGroups(){
       <button class="btn" onclick="document.getElementById('addListadoBtn').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>Agregar listado</button></div>`;
     return;
   }
-  const groups=new Map(); for(const c of PROJECT.colOrder) groups.set(c,[]);
-  const unclassified=[];
-  for(const b of PROJECT.blocks){ if(!b.col) unclassified.push(b); else groups.get(b.col).push(b); }
-  const match=b=> !listFilter || norm(b.accion).includes(listFilter) || norm(b.col).includes(listFilter) || norm(b.detalle).includes(listFilter);
+  const match=b=> !listFilter || norm(b.accion).includes(listFilter) || norm(b.col).includes(listFilter) || norm(b.detalle).includes(listFilter) || norm(b.negocio||"").includes(listFilter);
+  const gripSvg=`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`;
 
   const wrap=document.createElement("div"); wrap.className="ltable";
   const table=document.createElement("table"); table.className="lst";
-  table.innerHTML=`<thead><tr><th class="cgrip"></th><th>Segmento</th><th>Acción</th><th>Detalle</th><th class="cnum">Clientes</th><th>Origen</th><th class="cact"></th></tr></thead>`;
+  table.innerHTML=`<thead><tr><th class="cgrip"></th><th>Negocio</th><th>Segmento</th><th>Acción</th><th>Detalle</th><th class="cnum">Clientes</th><th>Origen</th><th class="cact"></th></tr></thead>`;
   const tb=document.createElement("tbody");
   let any=false;
-  const renderGroup=(name,arr,isUn)=>{
-    const vis=arr.filter(match); if(!vis.length) return;
-    any=true;
-    const key=isUn?UNCL:name, collapsed=collapsedCols.has(key);
-    const cli=new Set(); arr.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
-    const gtr=document.createElement("tr"); gtr.className="grp"+(collapsed?" collapsed":"");
-    const ggrip = isUn ? "" : `<span class="ggrip" title="Arrastrá para reordenar el segmento"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>`;
-    gtr.innerHTML=`<td colspan="7">${ggrip}<span class="chev">${collapsed?"▸":"▾"}</span><span class="dot" style="background:${isUn?'#f59e0b':'var(--accent2)'}"></span><span class="gname">${isUn?'Sin clasificar':esc(name)}</span><span class="gmeta">${arr.length} listado${arr.length>1?'s':''} · ${fmt(cli.size)} clientes${collapsed?" · plegado":""}</span></td>`;
-    gtr.addEventListener("click",()=>{ if(collapsedCols.has(key))collapsedCols.delete(key); else collapsedCols.add(key); renderGroups(); });
-    if(!isUn){
-      gtr.draggable=true;
-      gtr.addEventListener("dragstart",e=>{ dragGroupName=name; dragBlockId=null; gtr.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
-      gtr.addEventListener("dragend",()=>{ gtr.classList.remove("drag"); document.querySelectorAll("tr.grp.over").forEach(c=>c.classList.remove("over")); });
-      gtr.addEventListener("dragover",e=>{ if(dragGroupName==null)return; e.preventDefault(); gtr.classList.add("over"); });
-      gtr.addEventListener("dragleave",()=>gtr.classList.remove("over"));
-      gtr.addEventListener("drop",e=>{ if(dragGroupName==null)return; e.preventDefault(); gtr.classList.remove("over"); reorderSegments(dragGroupName,name); dragGroupName=null; });
+  // fila de encabezado de grupo (nivel "neg" = madre, "seg" = hijo)
+  const headerRow=(level,name,isUn,blocks,collapsed,onToggle,onDrop)=>{
+    const cli=new Set(); blocks.forEach(b=>b.records.forEach(r=>cli.add(r.pdv)));
+    const tr=document.createElement("tr"); tr.className="grp "+level+(collapsed?" collapsed":"");
+    const grip = isUn ? "" : `<span class="ggrip" title="Arrastrá para reordenar">${gripSvg}</span>`;
+    const label = isUn ? (level==="neg"?"Sin negocio":"Sin segmento") : esc(name);
+    const dot = isUn ? "#f59e0b" : (level==="neg"?"var(--accent)":"var(--accent2)");
+    const pad = level==="seg" ? ' style="padding-left:30px"' : '';
+    tr.innerHTML=`<td colspan="${LST_COLS}"${pad}>${grip}<span class="chev">${collapsed?"▸":"▾"}</span><span class="dot" style="background:${dot}"></span><span class="gname">${label}</span><span class="gmeta">${blocks.length} listado${blocks.length>1?'s':''} · ${fmt(cli.size)} clientes${collapsed?" · plegado":""}</span></td>`;
+    tr.addEventListener("click",e=>{ if(e.target.closest(".ggrip"))return; onToggle(); renderGroups(); });
+    if(!isUn && onDrop){
+      tr.draggable=true;
+      const isNeg=level==="neg";
+      tr.addEventListener("dragstart",e=>{ if(isNeg){dragNegName=name;dragGroupName=null;} else {dragGroupName=name;dragNegName=null;} dragBlockId=null; tr.classList.add("drag"); e.dataTransfer.effectAllowed="move"; });
+      tr.addEventListener("dragend",()=>{ tr.classList.remove("drag"); document.querySelectorAll("tr.grp.over").forEach(c=>c.classList.remove("over")); });
+      tr.addEventListener("dragover",e=>{ const active=isNeg?dragNegName:dragGroupName; if(active==null)return; e.preventDefault(); tr.classList.add("over"); });
+      tr.addEventListener("dragleave",()=>tr.classList.remove("over"));
+      tr.addEventListener("drop",e=>{ const active=isNeg?dragNegName:dragGroupName; if(active==null)return; e.preventDefault(); tr.classList.remove("over"); onDrop(active); dragNegName=dragGroupName=null; });
     }
-    tb.appendChild(gtr);
-    if(!collapsed) vis.forEach(b=>tb.appendChild(rowEl(b,isUn)));
+    tb.appendChild(tr);
   };
-  for(const [name,arr] of groups) renderGroup(name,arr,false);
-  renderGroup("",unclassified,true);
+
+  // segmentos (nivel hijo) de un negocio dado
+  const renderSegs=(neg)=>{
+    segmentsUnder(neg).forEach(seg=>{
+      const isUnSeg = seg==="";
+      const segBlocks=blocksIn(neg,seg);
+      const vis=segBlocks.filter(match); if(!vis.length) return;
+      any=true;
+      const sKey=segKey(neg,seg), sCollapsed=collapsedCols.has(sKey);
+      headerRow("seg", seg, isUnSeg, segBlocks, sCollapsed,
+        ()=>{ collapsedCols.has(sKey)?collapsedCols.delete(sKey):collapsedCols.add(sKey); },
+        isUnSeg?null:(from=>reorderSegments(from,seg)));
+      if(!sCollapsed) vis.forEach(b=>tb.appendChild(rowEl(b,isUnSeg)));
+    });
+  };
+  if(hasNegocios()){
+    presentNegocios().forEach(neg=>{
+      const isUnNeg = neg==="";
+      const negBlocks=PROJECT.blocks.filter(b=>(b.negocio||"")===neg);
+      if(!negBlocks.some(match)) return;
+      any=true;
+      const nKey=negKey(neg), nCollapsed=collapsedNegs.has(nKey);
+      headerRow("neg", neg, isUnNeg, negBlocks, nCollapsed,
+        ()=>{ collapsedNegs.has(nKey)?collapsedNegs.delete(nKey):collapsedNegs.add(nKey); },
+        isUnNeg?null:(from=>reorderNegocios(from,neg)));
+      if(!nCollapsed) renderSegs(neg);
+    });
+  } else {
+    renderSegs("");   // sin ningún negocio asignado: se muestran los Segmentos directo (sin capa madre)
+  }
   if(!any){ cont.innerHTML=`<div class="empty-state">Sin resultados${listFilter?` para “${esc($("#listSearch").value)}”`:""}.</div>`; return; }
   // aviso de acciones ya duplicadas en el proyecto
   const dups=findDuplicateGroups();
@@ -694,11 +849,19 @@ function renderGroups(){
   wrap.scrollTop=_sc;  // preservar posición de scroll al re-dibujar (p.ej. al plegar grupos)
 }
 
-let dragBlockId=null, dragGroupName=null;
+let dragBlockId=null, dragGroupName=null, dragNegName=null;
 /* reordenar segmentos (grupos) arrastrando su encabezado → cambia PROJECT.colOrder */
 function reorderSegments(fromName,toName){
   if(fromName==null||fromName===toName)return;
   const a=PROJECT.colOrder, fi=a.indexOf(fromName), ti=a.indexOf(toName);
+  if(fi<0||ti<0)return;
+  const [m]=a.splice(fi,1); a.splice(ti,0,m);
+  persist(); renderGroups(); renderMatrix();
+}
+/* reordenar negocios (grupo madre) arrastrando su encabezado → cambia PROJECT.negOrder */
+function reorderNegocios(fromName,toName){
+  if(fromName==null||fromName===toName)return;
+  const a=PROJECT.negOrder, fi=a.indexOf(fromName), ti=a.indexOf(toName);
   if(fi<0||ti<0)return;
   const [m]=a.splice(fi,1); a.splice(ti,0,m);
   persist(); renderGroups(); renderMatrix();
@@ -717,12 +880,16 @@ function rowEl(b,isUn){
   const srcTxt=b.source ? `${esc(b.source.file||"")}${b.source.sheet?" · "+esc(b.source.sheet):""}` : "";
   tr.innerHTML=`
     <td class="cgrip"><span class="grip" title="Arrastrar para reordenar"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span></td>
+    <td><input class="neginput" value="${esc(b.negocio||"")}" placeholder="negocio…"></td>
     <td><input class="colinput" value="${esc(b.col)}" placeholder="segmento…"></td>
     <td class="acc">${esc(b.accion)}</td>
     <td><input class="detinput" value="${esc(b.detalle)}" placeholder="detalle…"></td>
     <td class="cnum">${fmt(b.records.length)}</td>
     <td class="src" title="${srcTxt}">${srcTxt}</td>
     <td class="cact"><a class="lnk" data-dl title="Descargar este listado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/></svg></a><button class="xbtn" title="Quitar listado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
+  const ne=tr.querySelector(".neginput");
+  ne.addEventListener("change",()=>setListadoField(b,"negocio",clean(ne.value)));
+  ne.addEventListener("keydown",e=>{ if(e.key==="Enter") ne.blur(); });
   const ci=tr.querySelector(".colinput");
   ci.addEventListener("change",()=>setListadoField(b,"col",clean(ci.value)));
   ci.addEventListener("keydown",e=>{ if(e.key==="Enter") ci.blur(); });
@@ -773,10 +940,11 @@ function renderMatrix(){
     th.addEventListener("dragend",()=>{ th.classList.remove("drag"); wrap.querySelectorAll("th.over").forEach(x=>x.classList.remove("over")); });
     th.addEventListener("dragover",e=>{ e.preventDefault(); th.classList.add("over"); });
     th.addEventListener("dragleave",()=>th.classList.remove("over"));
-    th.addEventListener("drop",e=>{ e.preventDefault(); th.classList.remove("over"); reorderColumns(dragColIdx,i); });
+    th.addEventListener("drop",e=>{ e.preventDefault(); th.classList.remove("over"); reorderColumns(cols[dragColIdx],cols[i]); });
   });
 }
-function reorderColumns(from,to){ if(from==null||from===to)return; const a=PROJECT.colOrder,[m]=a.splice(from,1); a.splice(to,0,m); persist(); renderMatrix(); }
+/* reordenar por NOMBRE de segmento (los índices de la Matriz ya no coinciden 1:1 con colOrder por el agrupado por Negocio) */
+function reorderColumns(fromName,toName){ if(fromName==null||fromName===toName)return; const a=PROJECT.colOrder, fi=a.indexOf(fromName), ti=a.indexOf(toName); if(fi<0||ti<0)return; const [m]=a.splice(fi,1); a.splice(ti,0,m); persist(); renderGroups(); renderMatrix(); }
 function commitRename(oldName,newName){
   if(!newName||newName===oldName)return;
   // renombrar el segmento en los listados Y en sus reglas del Diccionario (misma fuente de verdad)
@@ -791,7 +959,7 @@ function commitRename(oldName,newName){
    Vista DICCIONARIO
    ============================================================ */
 /* re-clasifica TODOS los listados según el diccionario actual; devuelve cuántos cambiaron */
-function reapplyDict(){ let n=0; PROJECT.blocks.forEach(b=>{ const before=b.col+"|"+b.detalle; classify(b); if(before!==b.col+"|"+b.detalle)n++; }); recomputeColumns(); return n; }
+function reapplyDict(){ let n=0; PROJECT.blocks.forEach(b=>{ const before=(b.negocio||"")+"|"+b.col+"|"+b.detalle; classify(b); if(before!==(b.negocio||"")+"|"+b.col+"|"+b.detalle)n++; }); recomputeColumns(); return n; }
 /* INVARIANTE: todo listado con Acción debe tener SU entrada en el diccionario,
    para que siempre se pueda gestionar desde ahí y nunca quede "roto" (sin regla).
    Crea la entrada faltante tomando la Columna/Detalle del propio listado. Devuelve cuántas creó. */
@@ -800,7 +968,7 @@ function ensureDictCoverage(){
   let added=0;
   for(const b of PROJECT.blocks){
     const k=norm(b.accion); if(!k || have.has(k)) continue;
-    PROJECT.auxDict.push({accion:b.accion, col:b.col, detalle:b.detalle});
+    PROJECT.auxDict.push({accion:b.accion, negocio:b.negocio||"", col:b.col, detalle:b.detalle});
     have.add(k); added++;
   }
   return added;
@@ -810,7 +978,7 @@ function dictDupCount(){ const seen=new Set(); let n=0; for(const d of PROJECT.a
 function dedupeDict(){ const seen=new Map(), out=[]; let removed=0;
   for(const d of PROJECT.auxDict){ const k=norm(d.accion);
     if(!k){ out.push(d); continue; }
-    if(seen.has(k)){ const keep=seen.get(k); if(!keep.col&&d.col)keep.col=d.col; if(!keep.detalle&&d.detalle)keep.detalle=d.detalle; removed++; }
+    if(seen.has(k)){ const keep=seen.get(k); if(!keep.negocio&&d.negocio)keep.negocio=d.negocio; if(!keep.col&&d.col)keep.col=d.col; if(!keep.detalle&&d.detalle)keep.detalle=d.detalle; removed++; }
     else { seen.set(k,d); out.push(d); } }
   PROJECT.auxDict=out; return removed;
 }
@@ -823,25 +991,111 @@ function renderDict(){
     : "";
   if(dn) $("#dictDedupeBtn").addEventListener("click",runDictDedupe);
   const tb=$("#dictBody"); tb.innerHTML="";
-  PROJECT.auxDict.forEach((d,i)=>{
+  const rows=dictInListadoOrder();
+  DG.rows=rows; DG.nr=rows.length; DG.nc=DFIELDS.length; dgClearSel();
+  rows.forEach((d,r)=>{
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td><input data-f="accion" value="${esc(d.accion)}" placeholder="Acción…"></td>
-      <td><input data-f="col" value="${esc(d.col)}" placeholder="Segmento…"></td>
-      <td><input data-f="detalle" value="${esc(d.detalle)}" placeholder="Detalle…"></td>
-      <td class="delcol"><button class="delx" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>`;
-    // editar una fila → guardar y re-aplicar automáticamente a la matriz
-    tr.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",()=>{ d[inp.dataset.f]=clean(inp.value); reapplyDict(); persist(); renderCensus(); renderGroups(); renderMatrix(); }));
-    tr.querySelector(".delx").addEventListener("click",()=>{
+    DFIELDS.forEach((F,c)=>{
+      const td=document.createElement("td"); td.className="cell"; td.dataset.r=r; td.dataset.c=c;
+      td.innerHTML=`<span class="cv">${esc(d[F.f]||"")}</span>`;
+      tr.appendChild(td);
+    });
+    const del=document.createElement("td"); del.className="delcol";
+    del.innerHTML=`<button class="delx" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+    del.querySelector(".delx").addEventListener("click",()=>{
+      const i=PROJECT.auxDict.indexOf(d); if(i<0)return;
       PROJECT.auxDict.splice(i,1);
       // si algún listado dependía de esta Acción, su regla se re-crea con los valores actuales (nunca queda huérfano)
       ensureDictCoverage();
       reapplyDict(); persist(); renderDict(); renderCensus(); renderGroups(); renderMatrix();
     });
+    tr.appendChild(del);
     tb.appendChild(tr);
   });
-  if(!PROJECT.auxDict.length) tb.innerHTML=`<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--muted)">Sin entradas. Importá una hoja Auxiliar desde Excel o agregá filas a mano.</td></tr>`;
+  if(!PROJECT.auxDict.length) tb.innerHTML=`<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--muted)">Sin entradas. Importá una hoja Auxiliar desde Excel o agregá filas a mano.</td></tr>`;
 }
-$("#dictAdd").addEventListener("click",()=>{ PROJECT.auxDict.push({accion:"",col:"",detalle:""}); persist(); renderDict(); renderCensus(); });
+/* filas del diccionario en el mismo orden que la tab Listados (Negocio › Segmento › listado); las reglas sin listado van al final */
+function dictInListadoOrder(){
+  const rank=new Map(); orderedBlocks().forEach((b,i)=>{ const k=norm(b.accion); if(k&&!rank.has(k)) rank.set(k,i); });
+  return PROJECT.auxDict
+    .map((d,i)=>({d,i,r: rank.has(norm(d.accion))?rank.get(norm(d.accion)):Infinity}))
+    .sort((a,b)=> (a.r-b.r) || (a.i-b.i))
+    .map(x=>x.d);
+}
+/* ===== grilla editable tipo Excel del Diccionario: selección de rango, rellenar (Ctrl+Enter), copiar/pegar ===== */
+const DFIELDS=[{f:"negocio"},{f:"accion"},{f:"col"},{f:"detalle"}];
+const DG={ rows:[], nr:0, nc:4, a:null, b:null, editing:null, dragging:false, copied:null };
+const dgActive=()=>$("#view-dict").classList.contains("on");
+const dgCell=(r,c)=>$("#dictBody").querySelector(`td.cell[data-r="${r}"][data-c="${c}"]`);
+function dgClearSel(){ DG.a=DG.b=null; DG.editing=null; DG.copied=null; }
+function dgClearCopy(){ if(DG.copied){ DG.copied=null; dgPaint(); } }
+function dgRect(){ if(!DG.a||!DG.b)return null; return {r0:Math.min(DG.a.r,DG.b.r),r1:Math.max(DG.a.r,DG.b.r),c0:Math.min(DG.a.c,DG.b.c),c1:Math.max(DG.a.c,DG.b.c)}; }
+function dgPaint(){ const tb=$("#dictBody"); if(!tb)return;
+  tb.querySelectorAll("td.cell.sel,td.cell.sel-active,td.cell.copied").forEach(td=>td.classList.remove("sel","sel-active","copied"));
+  const K=DG.copied; if(K){ for(let r=K.r0;r<=K.r1;r++)for(let c=K.c0;c<=K.c1;c++){ const td=dgCell(r,c); if(td)td.classList.add("copied"); } }
+  const R=dgRect(); if(!R)return;
+  for(let r=R.r0;r<=R.r1;r++)for(let c=R.c0;c<=R.c1;c++){ const td=dgCell(r,c); if(td)td.classList.add("sel"); }
+  const a=dgCell(DG.a.r,DG.a.c); if(a)a.classList.add("sel-active"); }
+function dgSel(r,c,extend){ if(extend&&DG.a){ DG.b={r,c}; } else { DG.a=DG.b={r,c}; } dgPaint(); }
+function dgSetCell(r,c,val){ const d=DG.rows[r]; if(!d)return; d[DFIELDS[c].f]=val; const td=dgCell(r,c); if(td) td.innerHTML=`<span class="cv">${esc(val)}</span>`; }
+function dgApply(){ DG.copied=null; reapplyDict(); persist(); renderCensus(); renderGroups(); renderMatrix(); dgPaint(); }
+function dgFocus(){ const box=$("#dictBox"); if(box) box.focus({preventScroll:true}); }
+function dgMove(dir,extend,toEdge){ if(!DG.a)return; const base=extend?DG.b:DG.a; let r=base.r,c=base.c;
+  if(toEdge){   // Ctrl+flecha: saltar al borde de la grilla (como Excel en un bloque lleno)
+    if(dir==="ArrowDown")r=DG.nr-1; else if(dir==="ArrowUp")r=0; else if(dir==="ArrowRight")c=DG.nc-1; else if(dir==="ArrowLeft")c=0;
+  } else {
+    if(dir==="ArrowDown")r=Math.min(DG.nr-1,r+1); else if(dir==="ArrowUp")r=Math.max(0,r-1);
+    else if(dir==="ArrowRight")c=Math.min(DG.nc-1,c+1); else if(dir==="ArrowLeft")c=Math.max(0,c-1);
+  }
+  dgSel(r,c,extend); dgFocus(); const td=dgCell(r,c); if(td)td.scrollIntoView({block:"nearest",inline:"nearest"}); }
+function dgStartEdit(initial){ if(!DG.a)return; const {r,c}=DG.a; const td=dgCell(r,c); if(!td)return; const d=DG.rows[r]; if(!d)return;
+  const inp=document.createElement("input"); inp.className="celledit"; inp.value=(initial!=null)?initial:(d[DFIELDS[c].f]||"");
+  td.innerHTML=""; td.appendChild(inp); inp.focus(); if(initial!=null){ const L=inp.value.length; inp.setSelectionRange(L,L); } else inp.select();
+  DG.editing={r,c,inp};
+  inp.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){ e.preventDefault(); DG.editing=null; td.innerHTML=`<span class="cv">${esc(d[DFIELDS[c].f]||"")}</span>`; dgPaint(); dgFocus(); return; }
+    if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); dgCommit(true); dgPaint(); dgFocus(); return; }
+    if(e.key==="Enter"){ e.preventDefault(); dgCommit(false); dgMove("ArrowDown",false); return; }
+    if(e.key==="Tab"){ e.preventDefault(); dgCommit(false); dgMove(e.shiftKey?"ArrowLeft":"ArrowRight",false); return; }
+  });
+  inp.addEventListener("blur",()=>{ if(DG.editing&&DG.editing.inp===inp) dgCommit(false); });
+}
+function dgCommit(fill){ const E=DG.editing; if(!E)return; DG.editing=null; const val=clean(E.inp.value);
+  if(fill){ const R=dgRect(); if(R) for(let r=R.r0;r<=R.r1;r++)for(let c=R.c0;c<=R.c1;c++) dgSetCell(r,c,val); }
+  else dgSetCell(E.r,E.c,val);
+  dgApply();
+}
+function dgClearRange(){ const R=dgRect(); if(!R)return; for(let r=R.r0;r<=R.r1;r++)for(let c=R.c0;c<=R.c1;c++) dgSetCell(r,c,""); dgApply(); }
+function dgTSV(){ const R=dgRect(); if(!R)return ""; const lines=[]; for(let r=R.r0;r<=R.r1;r++){ const cells=[]; for(let c=R.c0;c<=R.c1;c++) cells.push((DG.rows[r][DFIELDS[c].f]||"").replace(/[\t\r\n]+/g," ")); lines.push(cells.join("\t")); } return lines.join("\r\n"); }
+function dgPaste(text){ const R=dgRect(); if(!R||!text)return; let g=text.replace(/\r/g,"").split("\n"); if(g.length&&g[g.length-1]==="")g.pop(); g=g.map(l=>l.split("\t"));
+  if(g.length===1&&g[0].length===1){ const v=clean(g[0][0]); for(let r=R.r0;r<=R.r1;r++)for(let c=R.c0;c<=R.c1;c++) dgSetCell(r,c,v); }
+  else { for(let i=0;i<g.length;i++){ const rr=R.r0+i; if(rr>=DG.nr)break; for(let j=0;j<g[i].length;j++){ const cc=R.c0+j; if(cc>=DG.nc)break; dgSetCell(rr,cc,clean(g[i][j])); } } }
+  dgApply();
+}
+$("#dictBody").addEventListener("mousedown",e=>{ const td=e.target.closest("td.cell"); if(!td)return; e.preventDefault(); if(DG.editing)dgCommit(false); const r=+td.dataset.r,c=+td.dataset.c; if(e.shiftKey&&DG.a){ DG.b={r,c}; } else { DG.a=DG.b={r,c}; DG.dragging=true; } dgPaint(); dgFocus(); });
+$("#dictBody").addEventListener("mouseover",e=>{ if(!DG.dragging)return; const td=e.target.closest("td.cell"); if(!td)return; DG.b={r:+td.dataset.r,c:+td.dataset.c}; dgPaint(); });
+document.addEventListener("mouseup",()=>{ DG.dragging=false; });
+$("#dictBody").addEventListener("dblclick",e=>{ const td=e.target.closest("td.cell"); if(!td)return; DG.a=DG.b={r:+td.dataset.r,c:+td.dataset.c}; dgStartEdit(); });
+document.addEventListener("keydown",e=>{
+  if(!dgActive()||!DG.a||DG.editing)return;
+  // solo salimos si el foco está en un campo de texto ajeno a la grilla (los botones NO bloquean la navegación)
+  const ae=document.activeElement; if(ae&&/^(input|textarea|select)$/i.test(ae.tagName)&&!ae.classList.contains("celledit"))return;
+  const k=e.key, ctrl=e.ctrlKey||e.metaKey;
+  if(k==="Escape"){ if(DG.copied){ e.preventDefault(); dgClearCopy(); } return; }
+  if(k.indexOf("Arrow")===0){ e.preventDefault(); dgMove(k,e.shiftKey,ctrl); return; }   // Ctrl=saltar al borde · Shift=extender
+  if(k==="Home"){ e.preventDefault(); dgMove("ArrowLeft",e.shiftKey,true); return; }
+  if(k==="End"){ e.preventDefault(); dgMove("ArrowRight",e.shiftKey,true); return; }
+  if(k==="Enter"||k==="F2"){ e.preventDefault(); dgStartEdit(); return; }
+  if(k==="Tab"){ e.preventDefault(); dgMove(e.shiftKey?"ArrowLeft":"ArrowRight",false); return; }
+  if(k==="Delete"||k==="Backspace"){ e.preventDefault(); dgClearRange(); return; }
+  if(ctrl&&k.toLowerCase()==="a"){ e.preventDefault(); DG.a={r:0,c:0}; DG.b={r:DG.nr-1,c:DG.nc-1}; dgPaint(); dgFocus(); return; }
+  if(ctrl)return;   // c/v/x los manejan los eventos copy/paste/cut
+  if(k.length===1&&!e.altKey){ e.preventDefault(); dgStartEdit(k); }
+});
+document.addEventListener("copy",e=>{ if(!dgActive()||!DG.a||DG.editing)return; const t=dgTSV(); if(t!==""){ e.clipboardData.setData("text/plain",t); e.preventDefault(); DG.copied=dgRect(); dgPaint(); } });
+document.addEventListener("cut",e=>{ if(!dgActive()||!DG.a||DG.editing)return; const t=dgTSV(); if(t!==""){ e.clipboardData.setData("text/plain",t); e.preventDefault(); DG.copied=null; dgClearRange(); } });
+document.addEventListener("paste",e=>{ if(!dgActive()||!DG.a||DG.editing)return; e.preventDefault(); dgPaste(e.clipboardData.getData("text/plain")); DG.copied=null; dgPaint(); });
+$("#dictAdd").addEventListener("click",()=>{ PROJECT.auxDict.push({accion:"",negocio:"",col:"",detalle:""}); persist(); renderDict(); renderCensus(); });
 $("#dictApply").addEventListener("click",()=>{ const n=reapplyDict(); persist(); renderAll(); alert(`Diccionario re-aplicado. ${n} listado(s) actualizado(s).`); });
 $("#dictImport").addEventListener("click",()=>$("#dictFile").click());
 $("#dictFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; readWB(f,wb=>{ importDictFromWB(wb); e.target.value=""; }); });
@@ -854,10 +1108,10 @@ function extractDictFromWB(wb, allowFallback){
   const h=(aoa[0]||[]).map(norm);
   const ia=h.indexOf("accion");
   if(ia<0) return null;
-  const il=h.indexOf("segmento")>=0?h.indexOf("segmento"):h.indexOf("listado")>=0?h.indexOf("listado"):h.indexOf("columna"), id=h.indexOf("detalle");
+  const il=h.indexOf("segmento")>=0?h.indexOf("segmento"):h.indexOf("listado")>=0?h.indexOf("listado"):h.indexOf("columna"), id=h.indexOf("detalle"), ine=h.indexOf("negocio");
   const out=[];
   for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue; const acc=clean(row[ia]); if(!acc)continue;
-    out.push({accion:acc, col:clean(row[il>=0?il:1]), detalle:clean(row[id>=0?id:2])}); }
+    out.push({accion:acc, negocio:ine>=0?clean(row[ine]):"", col:clean(row[il>=0?il:1]), detalle:clean(row[id>=0?id:2])}); }
   out._sheet=name;
   return out;
 }
@@ -866,8 +1120,8 @@ function mergeDict(entries){
   let added=0, updated=0;
   const idx=new Map(); PROJECT.auxDict.forEach((d,i)=>idx.set(norm(d.accion),i));
   for(const e of entries){ const k=norm(e.accion); if(!k)continue;
-    if(idx.has(k)){ const d=PROJECT.auxDict[idx.get(k)]; if(e.col)d.col=e.col; if(e.detalle)d.detalle=e.detalle; updated++; }
-    else { PROJECT.auxDict.push({accion:e.accion,col:e.col,detalle:e.detalle}); idx.set(k,PROJECT.auxDict.length-1); added++; } }
+    if(idx.has(k)){ const d=PROJECT.auxDict[idx.get(k)]; if(e.negocio)d.negocio=e.negocio; if(e.col)d.col=e.col; if(e.detalle)d.detalle=e.detalle; updated++; }
+    else { PROJECT.auxDict.push({accion:e.accion,negocio:e.negocio||"",col:e.col,detalle:e.detalle}); idx.set(k,PROJECT.auxDict.length-1); added++; } }
   return {added,updated};
 }
 function importDictFromWB(wb){
@@ -894,25 +1148,29 @@ function detectSaved(wb){
 }
 function buildProjectFromSaved(wb,saved){
   const aoa=saved.aoa, groups=new Map(), order=[];
+  // lectura por ENCABEZADO (tolera columnas nuevas como Negocio y Excels viejos sin ella)
+  const h=(aoa[0]||[]).map(norm);
+  const col=(...names)=>{ for(const n of names){ const i=h.indexOf(n); if(i>=0) return i; } return -1; };
+  const iAcc=col("accion"), iNeg=col("negocio"), iCol=col("segmento","columna","listado"), iDet=col("detalle"), iMan=col("manual"), iB2B=col("b2b","cliente"), iPdv=col("pdv");
   for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue;
     const id=clean(row[0]); if(!id)continue;
     let g=groups.get(id);
-    if(!g){ g={id, accion:clean(row[1]), col:clean(row[2]), detalle:clean(row[3]),
-        manual:/^(si|sí|true|1|x|verdadero)$/i.test(clean(row[4])), records:[]}; groups.set(id,g); order.push(id); }
-    const b2b=clean(row[5]); if(b2b==="")continue;
-    const pdv=clean(row[6])||pdvOf(b2b);
+    if(!g){ g={id, accion:iAcc>=0?clean(row[iAcc]):"", negocio:iNeg>=0?clean(row[iNeg]):"", col:iCol>=0?clean(row[iCol]):"", detalle:iDet>=0?clean(row[iDet]):"",
+        manual:iMan>=0?/^(si|sí|true|1|x|verdadero)$/i.test(clean(row[iMan])):false, records:[]}; groups.set(id,g); order.push(id); }
+    const b2b=iB2B>=0?clean(row[iB2B]):""; if(b2b==="")continue;
+    const pdv=(iPdv>=0?clean(row[iPdv]):"")||pdvOf(b2b);
     g.records.push({pdv,b2b});
   }
   const blocks=order.map(id=>groups.get(id)).filter(g=>g.records.length)
-    .map(g=>({id:g.id||uid(),accion:g.accion,col:g.col,detalle:g.detalle,manual:g.manual,records:g.records,source:null}));
+    .map(g=>({id:g.id||uid(),accion:g.accion,negocio:g.negocio||"",col:g.col,detalle:g.detalle,manual:g.manual,records:g.records,source:null}));
   // diccionario (hoja Auxiliar/Diccionario)
   const auxDict=[];
   const aname=wb.SheetNames.find(n=>norm(n)==="auxiliar"||norm(n)==="diccionario");
   if(aname){ const ax=XLSX.utils.sheet_to_json(wb.Sheets[aname],{header:1,raw:true,defval:null});
     const ah=(ax[0]||[]).map(norm);
-    const ia=ah.indexOf("accion"), il=ah.indexOf("segmento")>=0?ah.indexOf("segmento"):ah.indexOf("listado")>=0?ah.indexOf("listado"):ah.indexOf("columna"), idd=ah.indexOf("detalle");
+    const ia=ah.indexOf("accion"), ine=ah.indexOf("negocio"), il=ah.indexOf("segmento")>=0?ah.indexOf("segmento"):ah.indexOf("listado")>=0?ah.indexOf("listado"):ah.indexOf("columna"), idd=ah.indexOf("detalle");
     for(let r=1;r<ax.length;r++){ const row=ax[r]; if(!row)continue; const acc=clean(row[ia>=0?ia:0]); if(!acc)continue;
-      auxDict.push({accion:acc, col:clean(row[il>=0?il:1]), detalle:clean(row[idd>=0?idd:2])}); } }
+      auxDict.push({accion:acc, negocio:ine>=0?clean(row[ine]):"", col:clean(row[il>=0?il:1]), detalle:clean(row[idd>=0?idd:2])}); } }
   // orden de columnas (desde la hoja Matriz, salteando "PDV")
   let colOrder=[];
   const mname=wb.SheetNames.find(n=>norm(n)==="matriz");
@@ -937,12 +1195,12 @@ function openSavedFlow(file,wb,saved){
     PROJECTS.push(p); PROJECT=p;
     ensureDictCoverage();   // sana listados auto sin regla (p.ej. guardados antes de este cambio)
     DB.put("projects",p); DB.put("meta",{k:"last",id:p.id});
-    recomputeColumns(); renderAll(); closeAdd();
+    recomputeColumns(); renderAll(); closeAdd(); histReset();
   } else if(opt==="2"){
     if(!confirm(`Esto reemplaza los listados y el diccionario de «${PROJECT.name}». ¿Continuar?`)) return;
     PROJECT.blocks=data.blocks; PROJECT.auxDict=data.auxDict; PROJECT.colOrder=data.colOrder;
     ensureDictCoverage();   // sana listados auto sin regla
-    recomputeColumns(); persist(); renderAll(); closeAdd();
+    recomputeColumns(); persist(); renderAll(); closeAdd(); histReset();
   }
   // cancelar: dejo el modal abierto para elegir otro archivo
 }
@@ -1236,7 +1494,7 @@ function commitAdd(){
     const replacing=isReplacing(p), noC=!!p.noClass&&!replacing;
     const accion=clean(p.accion)||("Listado "+(i+1));
     const col=noC?"":clean(p.col), detalle=noC?"":clean(p.detalle);
-    const blk={ id:p.id, accion, col, detalle, manual:false, records:p.records, source:p.source };
+    const blk={ id:p.id, accion, negocio:"", col, detalle, manual:false, records:p.records, source:p.source };
     // regla #1: si NO reemplaza a uno activo, la Acción→Columna→Detalle va al diccionario sí o sí
     if(!replacing) dictToMerge.push({accion, col, detalle});
     if(replacing) replacements.push({targetId:p.replaceId, block:blk});
@@ -1248,6 +1506,7 @@ function commitAdd(){
     applyReplacements();
     if(dictToMerge.length) mergeDict(dictToMerge);  // dicc de los archivos + reglas marcadas en la revisión
     ensureDictCoverage();   // ningún listado auto queda sin su entrada en el diccionario
+    reapplyDict();          // los listados nuevos heredan Negocio/Segmento/Detalle de reglas ya existentes
     recomputeColumns(); persist(); renderAll(); closeAdd();
     document.querySelector('.tab[data-tab="listados"]').click();
   };
@@ -1390,13 +1649,13 @@ function exportMatrixExcel(){
   const wb=XLSX.utils.book_new();
   // Hoja 1 · Matriz (para ver/pegar)
   if(rows.length){ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header,...rows]), "Matriz"); }
-  // Hoja 2 · Listados (formato que la herramienta vuelve a leer)
-  const laoa=[["BloqueID","Acción","Segmento","Detalle","Manual","B2B","PDV"]];
-  for(const b of PROJECT.blocks) for(const r of b.records) laoa.push([b.id,b.accion,b.col,b.detalle,b.manual?"SI":"",r.b2b,r.pdv]);
+  // Hoja 2 · Listados (formato que la herramienta vuelve a leer; se lee por encabezado)
+  const laoa=[["BloqueID","Negocio","Acción","Segmento","Detalle","Manual","B2B","PDV"]];
+  for(const b of orderedBlocks()) for(const r of b.records) laoa.push([b.id,b.negocio||"",b.accion,b.col,b.detalle,b.manual?"SI":"",r.b2b,r.pdv]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(laoa), "Listados");
   // Hoja 3 · Auxiliar (diccionario)
-  const daoa=[["Acción","Listado","Detalle"]];
-  for(const d of PROJECT.auxDict) daoa.push([d.accion,d.col,d.detalle]);
+  const daoa=[["Negocio","Acción","Segmento","Detalle"]];
+  for(const d of dictInListadoOrder()) daoa.push([d.negocio||"",d.accion,d.col,d.detalle]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(daoa), "Auxiliar");
   XLSX.writeFile(wb, fileSafe(PROJECT.name)+"_matriz.xlsx");
 }
@@ -1431,6 +1690,23 @@ function downloadBlock(b){
 }
 const sheetSafe=s=>(s||"Listado").replace(/[\\/?*\[\]:]/g,"").slice(0,31)||"Listado";
 const fileSafe=s=>(s||"proyecto").replace(/[^\w\-]+/g,"_").slice(0,40)||"proyecto";
+
+/* ============================================================
+   PWA: service worker + botón "Instalar app"
+   ============================================================ */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+let deferredPrompt=null;
+const installBtn=$("#installBtn");
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredPrompt=e; if(installBtn) installBtn.hidden=false; });
+if(installBtn) installBtn.addEventListener("click",async()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt=null; installBtn.hidden=true;
+});
+window.addEventListener("appinstalled",()=>{ deferredPrompt=null; if(installBtn) installBtn.hidden=true; });
 </script>
 </body>
 </html>
